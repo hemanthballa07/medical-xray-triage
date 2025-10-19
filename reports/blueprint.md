@@ -1,3 +1,7 @@
+---
+title: "Medical X-ray Triage System - Technical Blueprint"
+---
+
 # Medical X-ray Triage System - Technical Blueprint
 
 ## Executive Summary
