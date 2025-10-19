@@ -1,0 +1,37 @@
+# Example configuration file for Medical X-ray Triage project
+# Usage: python -m src.train --config config_example.yaml
+
+# Data configuration
+data_dir: "./data/sample"
+output_dir: "./results"
+img_size: 320
+
+# Model configuration
+model_name: "resnet18" # Options: resnet18, resnet50, efficientnet_v2_s
+pretrained: true
+
+# Training configuration
+batch_size: 8
+epochs: 5
+lr: 0.0001
+weight_decay: 0.0001
+patience: 5
+
+# Evaluation configuration
+model_path: "./results/best.pt"
+threshold: 0.5
+
+# System configuration
+seed: 1337
+num_workers: 4
+device: "auto" # Options: auto, cpu, cuda, mps
+
+# Logging and saving
+save_freq: 1
+log_freq: 10
+verbose: false
+
+# Grad-CAM configuration
+cam_layer: "auto" # Options: auto, layer4 (ResNet50), features.7 (EfficientNet)
+cam_method: "GradCAM" # Options: GradCAM, GradCAMPlusPlus, XGradCAM
+

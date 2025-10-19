@@ -1,0 +1,91 @@
+{
+  "default_threshold_results": {
+    "predictions": [
+      2.589737855874407e-16,
+      3.207112377859485e-15,
+      1.2208965189199929e-14,
+      1.9030593073621205e-12
+    ],
+    "labels": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+    ],
+    "logits": [
+      -35.88980484008789,
+      -33.37340545654297,
+      -32.03660583496094,
+      -26.987558364868164
+    ],
+    "metrics": {
+      "auroc": 1.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "threshold": 0.5,
+      "sensitivity": 0.0,
+      "specificity": 1.0
+    },
+    "threshold": 0.5
+  },
+  "optimal_threshold_results": {
+    "predictions": [
+      2.589737855874407e-16,
+      3.207112377859485e-15,
+      1.2208965189199929e-14,
+      1.9030593073621205e-12
+    ],
+    "labels": [
+      0.0,
+      0.0,
+      1.0,
+      1.0
+    ],
+    "logits": [
+      -35.88980484008789,
+      -33.37340545654297,
+      -32.03660583496094,
+      -26.987558364868164
+    ],
+    "metrics": {
+      "auroc": 1.0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "threshold": 1.2208965189199929e-14,
+      "sensitivity": 1.0,
+      "specificity": 1.0
+    },
+    "threshold": 1.2208965189199929e-14
+  },
+  "optimal_threshold": 1.2208965189199929e-14,
+  "config": {
+    "config": null,
+    "data_dir": "./data/sample",
+    "output_dir": "./results",
+    "img_size": 320,
+    "model_name": "resnet18",
+    "pretrained": true,
+    "batch_size": 8,
+    "epochs": 2,
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "patience": 5,
+    "model_path": "./results/best.pt",
+    "threshold": 0.5,
+    "seed": 1337,
+    "num_workers": 4,
+    "device": "mps",
+    "save_freq": 1,
+    "log_freq": 10,
+    "verbose": false,
+    "cam_layer": "features",
+    "cam_method": "GradCAM",
+    "labels_path": "./data/sample/labels.csv",
+    "images_dir": "./data/sample/images",
+    "best_model_path": "./results/best.pt",
+    "metrics_path": "./results/metrics.json"
+  },
+  "model_name": "resnet18"
+}

@@ -1,0 +1,12 @@
+# This file ensures the results directory is tracked by git
+
+This directory will contain:
+- Trained model weights (best.pt)
+- Training metrics (metrics.json)
+- Evaluation results (evaluation_results.json)
+- ROC curves (roc_curve.png)
+- Confusion matrices (confusion_matrix.png)
+- Grad-CAM visualizations (cam_*.png)
+- Training history plots
+- Other model outputs
+

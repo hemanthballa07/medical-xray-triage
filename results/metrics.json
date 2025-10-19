@@ -1,0 +1,78 @@
+{
+  "best_val_auroc": 0.5,
+  "final_train_metrics": {
+    "auroc": 0.625,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "threshold": 0.5,
+    "sensitivity": 0.0,
+    "specificity": 1.0,
+    "loss": 36.379207611083984
+  },
+  "final_val_metrics": {
+    "auroc": 0.5,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "threshold": 0.5,
+    "sensitivity": 0.0,
+    "specificity": 1.0,
+    "loss": 14.152034759521484
+  },
+  "history": {
+    "train_loss": [
+      36.379207611083984
+    ],
+    "val_loss": [
+      14.152034759521484
+    ],
+    "train_auroc": [
+      0.625
+    ],
+    "val_auroc": [
+      0.5
+    ],
+    "train_f1": [
+      0.0
+    ],
+    "val_f1": [
+      0.0
+    ],
+    "train_acc": [
+      0.0
+    ],
+    "val_acc": [
+      0.0
+    ]
+  },
+  "config": {
+    "config": null,
+    "data_dir": "./data/sample",
+    "output_dir": "./results",
+    "img_size": 320,
+    "model_name": "resnet18",
+    "pretrained": true,
+    "batch_size": 8,
+    "epochs": 1,
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "patience": 5,
+    "model_path": "./results/best.pt",
+    "threshold": 0.5,
+    "seed": 1337,
+    "num_workers": 4,
+    "device": "mps",
+    "save_freq": 1,
+    "log_freq": 10,
+    "verbose": false,
+    "cam_layer": "features",
+    "cam_method": "GradCAM",
+    "labels_path": "./data/sample/labels.csv",
+    "images_dir": "./data/sample/images",
+    "best_model_path": "./results/best.pt",
+    "metrics_path": "./results/metrics.json"
+  },
+  "training_time": 18.766584873199463,
+  "timestamp": "2025-10-16 10:17:02"
+}
