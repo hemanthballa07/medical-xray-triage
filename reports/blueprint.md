@@ -1,8 +1,13 @@
 ---
 title: "Medical X-ray Triage System - Technical Blueprint"
+author: "Hemanth Balla"
+date: "October 19, 2025"
 ---
 
 # Medical X-ray Triage System - Technical Blueprint
+
+**Author:** Hemanth Balla  
+**Date:** October 19, 2025
 
 ## Executive Summary
 
@@ -128,6 +133,8 @@ This document outlines the technical architecture and implementation details for
 | **Random Rotation**        | degrees=5                    | Handle image orientation   |
 | **Color Jitter**           | brightness=0.1, contrast=0.1 | Robustness to lighting     |
 | **Normalization**          | ImageNet stats               | Standard preprocessing     |
+
+This modular design enables efficient experimentation and ensures transparency across all stages of inference.
 
 ## 4. Implementation Details
 
@@ -398,7 +405,7 @@ streamlit run ui/app.py
 - **Augmentation**: Adjust augmentation parameters
 - **Class Weights**: Handle imbalanced datasets
 
-## 9. Limitations and Considerations
+## 9. Ethical and Responsible AI Considerations
 
 ### 9.1 Technical Limitations
 
@@ -444,7 +451,7 @@ streamlit run ui/app.py
 - **HIPAA Compliance**: Follow healthcare privacy regulations
 - **Data Retention**: Implement appropriate data retention policies
 
-## 10. Future Enhancements
+## 10. Implementation Timeline
 
 ### 10.1 Technical Improvements
 
@@ -604,9 +611,16 @@ The Medical X-ray Triage system represents a comprehensive approach to automated
 
 This system serves as a foundation for advancing medical AI research while maintaining strict adherence to research-only usage guidelines. The combination of technical rigor, interpretability, and user accessibility makes it a valuable tool for the medical AI community.
 
+## References
+
+- Selvaraju, R. R., et al. "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization." *International Conference on Computer Vision (ICCV)*, 2017.
+- He, K., et al. "Deep Residual Learning for Image Recognition." *Conference on Computer Vision and Pattern Recognition (CVPR)*, 2016.
+- Tan, M., & Le, Q. "EfficientNetV2: Smaller Models and Faster Training." *International Conference on Machine Learning (ICML)*, 2021.
+- Paszke, A., et al. "PyTorch: An Imperative Style, High-Performance Deep Learning Library." *Advances in Neural Information Processing Systems (NeurIPS)*, 2019.
+
 ---
 
 **Document Version**: 1.0  
-**Last Updated**: December 2024  
-**Authors**: ML Engineering Team  
-**Review Status**: Technical Review Complete
+**Last Updated**: October 19, 2025  
+**Author**: Hemanth Balla  
+**Review Status**: Ready for Submission
