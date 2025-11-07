@@ -385,20 +385,6 @@ If you use this project in your research, please cite:
 **Institution**: University of Florida
 **Project Type**: Research and Educational
 
-### Contact Information
-
-- **Issues and Bug Reports**: [GitHub Issues](https://github.com/yourusername/pneumonia-project/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/yourusername/pneumonia-project/discussions)
-- **General Questions**: ml.engineer@example.com
-
-### Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on:
-
-- Code contributions
-- Documentation improvements
-- Bug reports and feature requests
-- Testing and validation
 
 ## Acknowledgments
 
