@@ -380,9 +380,9 @@ If you use this project in your research, please cite:
 
 ## Author and Contact
 
-**Project Author**: ML Engineering Team  
-**Email**: ml.engineer@example.com  
-**Institution**: Medical AI Research Lab  
+**Project Author**: Hemanth Balla
+**Email**: hemanthballa1861@gmail.com 
+**Institution**: University of Florida
 **Project Type**: Research and Educational
 
 ### Contact Information
