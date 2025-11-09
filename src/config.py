@@ -34,6 +34,18 @@ def get_config():
         help="Directory containing training data"
     )
     parser.add_argument(
+        "--images_dir", 
+        type=str, 
+        default=None,
+        help="Directory containing images (default: data_dir/images or data_dir/train for NIH dataset)"
+    )
+    parser.add_argument(
+        "--labels_path", 
+        type=str, 
+        default=None,
+        help="Path to labels CSV file (default: data_dir/labels.csv or data_dir/train_labels.csv for NIH dataset)"
+    )
+    parser.add_argument(
         "--output_dir", 
         type=str, 
         default="./results",
@@ -215,8 +227,37 @@ def post_process_config(args) -> Dict[str, Any]:
             config["cam_layer"] = "features"
     
     # Add computed paths
-    config["labels_path"] = os.path.join(config["data_dir"], "labels.csv")
-    config["images_dir"] = os.path.join(config["data_dir"], "images")
+    # Handle NIH dataset structure (has train/val/test folders)
+    data_dir = config["data_dir"]
+    train_labels_path = os.path.join(data_dir, "train_labels.csv")
+    train_images_dir = os.path.join(data_dir, "train")
+    
+    # Check if NIH dataset structure exists
+    is_nih_dataset = (
+        os.path.exists(train_labels_path) and 
+        os.path.exists(train_images_dir)
+    )
+    
+    # Set labels_path
+    if config["labels_path"] is None:
+        if is_nih_dataset:
+            # Default to train split for NIH dataset
+            config["labels_path"] = train_labels_path
+        else:
+            config["labels_path"] = os.path.join(data_dir, "labels.csv")
+    else:
+        config["labels_path"] = config["labels_path"]
+    
+    # Set images_dir
+    if config["images_dir"] is None:
+        if is_nih_dataset:
+            # Default to train split for NIH dataset
+            config["images_dir"] = train_images_dir
+        else:
+            config["images_dir"] = os.path.join(data_dir, "images")
+    else:
+        config["images_dir"] = config["images_dir"]
+    
     config["best_model_path"] = os.path.join(config["output_dir"], "best.pt")
     config["metrics_path"] = os.path.join(config["output_dir"], "metrics.json")
     

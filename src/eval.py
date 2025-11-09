@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 from config import get_config
-from data import create_data_loaders, get_simple_data_loader
+from data import create_data_loaders, get_simple_data_loader, create_pre_split_data_loaders, ChestXrayDataset, get_transforms
 from model import create_model
 from utils import (
     seed_everything, compute_metrics, print_metrics_table,
@@ -227,7 +227,10 @@ def main():
         print()
     
     # Get device
-    device = torch.device(config['device'])
+    if config.get('device', 'auto') == 'auto':
+        device = get_device()
+    else:
+        device = torch.device(config['device'])
     print(f"Using device: {device}")
     
     # Load model
@@ -245,7 +248,28 @@ def main():
     print("Loading test data...")
     
     # For small datasets, use simple data loader
-    if os.path.exists(config['labels_path']):
+    # Check if this is a pre-split NIH dataset
+    train_labels_path = os.path.join(config['data_dir'], 'train_labels.csv')
+    is_nih_dataset = os.path.exists(train_labels_path)
+    
+    if is_nih_dataset:
+        print("NIH dataset detected (pre-split structure), using test split for evaluation")
+        # Load only test split for evaluation
+        test_labels_path = os.path.join(config['data_dir'], 'test_labels.csv')
+        test_images_dir = os.path.join(config['data_dir'], 'test')
+        
+        test_transform = get_transforms(config['img_size'], is_training=False)
+        test_dataset = ChestXrayDataset(test_labels_path, test_images_dir, transform=test_transform)
+        
+        from torch.utils.data import DataLoader
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=config['batch_size'],
+            shuffle=False,
+            num_workers=config['num_workers'],
+            pin_memory=torch.cuda.is_available()
+        )
+    elif os.path.exists(config['labels_path']):
         import pandas as pd
         labels_df = pd.read_csv(config['labels_path'])
         if len(labels_df) <= 10:  # Small dataset, use simple loader

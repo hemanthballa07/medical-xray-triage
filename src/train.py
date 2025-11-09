@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent))
 
 from config import get_config, save_config
-from data import create_data_loaders, get_simple_data_loader
+from data import create_data_loaders, get_simple_data_loader, create_pre_split_data_loaders
 from model import create_model, save_model
 from utils import (
     seed_everything, compute_metrics, print_metrics_table, 
@@ -200,7 +200,19 @@ def train_model(config):
     print("Loading data...")
     
     # For small datasets, use simple data loader
-    if os.path.exists(config['labels_path']):
+    # Check if this is a pre-split NIH dataset
+    train_labels_path = os.path.join(config['data_dir'], 'train_labels.csv')
+    is_nih_dataset = os.path.exists(train_labels_path)
+    
+    if is_nih_dataset:
+        print("NIH dataset detected (pre-split structure), using pre-split data loaders")
+        train_loader, val_loader, test_loader, class_weights = create_pre_split_data_loaders(
+            data_dir=config['data_dir'],
+            batch_size=config['batch_size'],
+            img_size=config['img_size'],
+            num_workers=config['num_workers']
+        )
+    elif os.path.exists(config['labels_path']):
         import pandas as pd
         labels_df = pd.read_csv(config['labels_path'])
         if len(labels_df) <= 10:  # Small dataset, use simple loader
