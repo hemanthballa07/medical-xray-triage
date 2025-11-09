@@ -57,9 +57,14 @@ class ChestXrayGradCAMWrapper:
         self.model.eval()
         return self
     
-    def train(self):
+    def train(self, mode=True):
         """Set model to training mode."""
-        self.model.train()
+        self.model.train(mode)
+        return self
+    
+    def to(self, device):
+        """Move model to device."""
+        self.model = self.model.to(device)
         return self
     
     def parameters(self):
@@ -154,7 +159,7 @@ def generate_gradcam(image_path, model, model_name, device, cam_method="GradCAM"
         _ = model(torch.randn(1, 3, 320, 320).to(device))
     
     # Create Grad-CAM object
-    cam = GradCAM(model=model, target_layers=target_layers, use_cuda=False)
+    cam = GradCAM(model=model, target_layers=target_layers)
     
     # Generate Grad-CAM
     grayscale_cam = cam(input_tensor=input_tensor, targets=None)[0]

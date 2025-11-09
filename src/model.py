@@ -263,33 +263,71 @@ def save_model(model, save_path, optimizer=None, epoch=None, metrics=None):
     torch.save(checkpoint, save_path)
 
 
-def load_model(load_path, device='cpu'):
+def load_model(load_path, device='cpu', model_name=None):
     """
     Load model from checkpoint.
     
     Args:
         load_path (str): Path to load the model from
         device (str): Device to load the model on
+        model_name (str): Model name if not in checkpoint (default: 'resnet18')
     
     Returns:
         tuple: (model, checkpoint_info)
     """
     checkpoint = torch.load(load_path, map_location=device, weights_only=False)
     
-    # Create model
-    model_name = checkpoint.get('model_name', 'resnet50')
-    num_classes = checkpoint.get('num_classes', 1)
+    # Check if checkpoint is a dict with metadata or just state_dict
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        # Full checkpoint format
+        state_dict = checkpoint['model_state_dict']
+        model_name = checkpoint.get('model_name', model_name or 'resnet18')
+        num_classes = checkpoint.get('num_classes', 1)
+        epoch = checkpoint.get('epoch', None)
+        metrics = checkpoint.get('metrics', None)
+    elif isinstance(checkpoint, dict) and any(k.startswith('backbone.') or k.startswith('classifier.') for k in checkpoint.keys()):
+        # Direct state_dict format (saved from train.py)
+        state_dict = checkpoint
+        # Try to get model_name from params.yaml or metrics.json
+        if model_name is None:
+            import os
+            import yaml
+            import json
+            params_path = os.path.join(os.path.dirname(load_path), 'params.yaml')
+            metrics_path = os.path.join(os.path.dirname(load_path), 'metrics.json')
+            if os.path.exists(params_path):
+                with open(params_path, 'r') as f:
+                    params = yaml.safe_load(f)
+                    model_name = params.get('model_name', 'resnet18')
+            elif os.path.exists(metrics_path):
+                with open(metrics_path, 'r') as f:
+                    metrics_data = json.load(f)
+                    config = metrics_data.get('config', {})
+                    model_name = config.get('model_name', 'resnet18')
+            else:
+                model_name = 'resnet18'
+        num_classes = 1
+        epoch = None
+        metrics = None
+    else:
+        # Assume it's a state_dict
+        state_dict = checkpoint
+        model_name = model_name or 'resnet18'
+        num_classes = 1
+        epoch = None
+        metrics = None
     
+    # Create model
     model = create_model(model_name=model_name, num_classes=num_classes)
     
     # Load state dict
-    model.load_state_dict(checkpoint['model_state_dict'])
+    model.load_state_dict(state_dict)
     model.to(device)
     
     # Extract checkpoint info
     checkpoint_info = {
-        'epoch': checkpoint.get('epoch', None),
-        'metrics': checkpoint.get('metrics', None),
+        'epoch': epoch,
+        'metrics': metrics,
         'model_name': model_name,
         'num_classes': num_classes
     }

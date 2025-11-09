@@ -20,7 +20,7 @@ import json
 # Add src to path for imports
 sys.path.append(str(Path(__file__).parent.parent / "src"))
 
-from model import create_model
+from model import create_model, load_model
 from data import get_transforms
 from utils import get_device, seed_everything
 
@@ -41,12 +41,12 @@ def load_optimal_threshold():
         try:
             with open(eval_results_path, 'r') as f:
                 eval_results = json.load(f)
-            optimal_threshold = eval_results.get('optimal_threshold', 0.5)
+            optimal_threshold = eval_results.get('optimal_threshold', 0.2580)
             # Clamp to reasonable range for slider
             return max(0.05, min(0.95, optimal_threshold))
         except (json.JSONDecodeError, KeyError):
             pass
-    return 0.5
+    return 0.2580  # Default threshold from evaluation
 
 
 # Page configuration
@@ -90,17 +90,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-class ChestXrayGradCAMWrapper:
-    """Wrapper class to make the model compatible with pytorch-grad-cam."""
-    
-    def __init__(self, model):
-        self.model = model
-        self.model.eval()
-    
-    def __call__(self, input_tensor):
-        return self.model(input_tensor)
-
-
 @st.cache_resource
 def load_trained_model(model_path, device):
     """
@@ -126,11 +115,30 @@ def load_trained_model(model_path, device):
 
 def get_target_layers(model, model_name):
     """Get target layers for Grad-CAM."""
-    if model_name == "resnet50":
-        target_layers = [model.backbone[-1]]
-    elif model_name == "efficientnet_v2_s":
+    model_name_lower = model_name.lower()
+    
+    # For ResNet models, get the last convolutional layer in the last residual block
+    if model_name_lower.startswith("resnet"):
+        # The backbone is a Sequential, and the last layer is layer4 (for ResNet18/50)
+        # Get the last BasicBlock/Bottleneck in layer4
+        last_layer = model.backbone[-1]
+        # For ResNet18/50, the last layer is a Sequential of blocks
+        # Get the last block's conv2 layer (the actual conv layer we want)
+        if hasattr(last_layer, '__getitem__'):
+            last_block = last_layer[-1]
+            # Get conv2 from the last block (this is the last convolutional layer)
+            if hasattr(last_block, 'conv2'):
+                target_layers = [last_block.conv2]
+            else:
+                # Fallback to the last layer
+                target_layers = [last_layer]
+        else:
+            target_layers = [last_layer]
+    elif model_name_lower.startswith("efficientnet"):
+        # For EfficientNet, use the last feature layer
         target_layers = [model.backbone[-1]]
     else:
+        # Default: use the last layer of backbone
         target_layers = [model.backbone[-1]]
     
     return target_layers
@@ -153,43 +161,52 @@ def generate_gradcam_streamlit(model, input_tensor, model_name, device, cam_meth
     if not GRADCAM_AVAILABLE:
         return None, None, None
     
-    # Get prediction
-    model.eval()
-    with torch.no_grad():
-        logits = model(input_tensor)
-        prediction_prob = torch.sigmoid(logits).item()
+    try:
+        # Get prediction - compute logits and probability separately
+        model.eval()
+        with torch.no_grad():
+            logits = model(input_tensor)  # shape [1, 1] for binary classification
+            prediction_prob = torch.sigmoid(logits)[0, 0].item()
+        
+        # Get target layers from the model
+        target_layers = get_target_layers(model, model_name)
+        
+        # Determine target index based on output dimension
+        # For binary models with single logit output, use index 0
+        out_dim = int(logits.shape[-1])
+        target_idx = 0 if out_dim == 1 else 1  # If you ever switch to 2-logit head, 1 = "Abnormal"
+        
+        # Create Grad-CAM object - use model directly (pytorch-grad-cam works with PyTorch models)
+        # Device handling is automatic based on where the model is placed
+        if cam_method == "GradCAM":
+            cam = GradCAM(model=model, target_layers=target_layers)
+        elif cam_method == "GradCAMPlusPlus":
+            cam = GradCAMPlusPlus(model=model, target_layers=target_layers)
+        elif cam_method == "XGradCAM":
+            cam = XGradCAM(model=model, target_layers=target_layers)
+        else:
+            return prediction_prob, None, None
+        
+        # Generate Grad-CAM with correct target index for binary model
+        targets = [ClassifierOutputTarget(target_idx)]
+        grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
+        grayscale_cam = grayscale_cam[0]  # HxW (remove batch dimension)
+        
+        # Convert to numpy for overlay
+        original_np = input_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
+        # Denormalize ImageNet normalization
+        original_np = (original_np * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]))
+        original_np = np.clip(original_np, 0, 1)
+        
+        # Create Grad-CAM visualization
+        gradcam_image = show_cam_on_image(original_np, grayscale_cam, use_rgb=True)
+        
+        return prediction_prob, gradcam_image, grayscale_cam
     
-    # Create Grad-CAM wrapper
-    wrapped_model = ChestXrayGradCAMWrapper(model)
-    
-    # Get target layers
-    target_layers = get_target_layers(model, model_name)
-    
-    # Create Grad-CAM object
-    if cam_method == "GradCAM":
-        cam = GradCAM(model=wrapped_model, target_layers=target_layers, use_cuda=(device.type == 'cuda'))
-    elif cam_method == "GradCAMPlusPlus":
-        cam = GradCAMPlusPlus(model=wrapped_model, target_layers=target_layers, use_cuda=(device.type == 'cuda'))
-    elif cam_method == "XGradCAM":
-        cam = XGradCAM(model=wrapped_model, target_layers=target_layers, use_cuda=(device.type == 'cuda'))
-    else:
+    except Exception as e:
+        # Return None for Grad-CAM on error, but keep the prediction probability
+        st.warning(f"Grad-CAM failed: {e}")
         return prediction_prob, None, None
-    
-    # Generate Grad-CAM
-    target_class = 1 if prediction_prob > 0.5 else 0
-    targets = [ClassifierOutputTarget(target_class)]
-    grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-    grayscale_cam = grayscale_cam[0, :]
-    
-    # Convert to numpy for overlay
-    original_np = input_tensor.squeeze().permute(1, 2, 0).cpu().numpy()
-    original_np = (original_np * np.array([0.229, 0.224, 0.225]) + np.array([0.485, 0.456, 0.406]))
-    original_np = np.clip(original_np, 0, 1)
-    
-    # Create Grad-CAM visualization
-    gradcam_image = show_cam_on_image(original_np, grayscale_cam, use_rgb=True)
-    
-    return prediction_prob, gradcam_image, grayscale_cam
 
 
 def main():
@@ -213,7 +230,7 @@ def main():
     
     # Model selection
     model_options = {
-        "ResNet50": "./results/best.pt",
+        "ResNet18": "./results/best.pt",
         "Custom Model": None
     }
     
@@ -322,12 +339,12 @@ def main():
                     transform = get_transforms(img_size=img_size, is_training=False)
                     input_tensor = transform(image).unsqueeze(0).to(device)
                     
-                    # Run inference
+                    # Run inference - compute logits and probability separately
                     with st.spinner("Running inference..."):
                         model.eval()
                         with torch.no_grad():
-                            logits = model(input_tensor)
-                            prediction_prob = torch.sigmoid(logits).item()
+                            logits = model(input_tensor)  # shape [1, 1] for binary classification
+                            prediction_prob = torch.sigmoid(logits)[0, 0].item()
                     
                     # Display results
                     with col2:
@@ -367,26 +384,31 @@ def main():
                             st.subheader("🎯 Grad-CAM Visualization")
                             
                             with st.spinner("Generating Grad-CAM..."):
-                                pred_prob, gradcam_img, grayscale_cam = generate_gradcam_streamlit(
-                                    model, input_tensor, checkpoint_info['model_name'], 
-                                    device, cam_method
-                                )
-                            
-                            if gradcam_img is not None:
-                                # Display Grad-CAM overlay
-                                st.image(gradcam_img, caption=f"Grad-CAM Overlay ({cam_method})", use_column_width=True)
-                                
-                                # Display heatmap
-                                fig, ax = plt.subplots(figsize=(6, 4))
-                                im = ax.imshow(grayscale_cam, cmap='jet')
-                                ax.set_title("Grad-CAM Heatmap")
-                                ax.axis('off')
-                                plt.colorbar(im, ax=ax)
-                                st.pyplot(fig)
-                                
-                                st.info(f"Grad-CAM shows which regions the model focuses on for the '{pred_class}' prediction.")
-                            else:
-                                st.warning("Could not generate Grad-CAM visualization.")
+                                try:
+                                    pred_prob, gradcam_img, grayscale_cam = generate_gradcam_streamlit(
+                                        model, input_tensor, checkpoint_info['model_name'], 
+                                        device, cam_method
+                                    )
+                                    
+                                    if gradcam_img is not None and grayscale_cam is not None:
+                                        # Display Grad-CAM overlay
+                                        st.image(gradcam_img, caption=f"Grad-CAM Overlay ({cam_method})", use_column_width=True)
+                                        
+                                        # Display heatmap
+                                        fig, ax = plt.subplots(figsize=(6, 4))
+                                        im = ax.imshow(grayscale_cam, cmap='jet')
+                                        ax.set_title("Grad-CAM Heatmap")
+                                        ax.axis('off')
+                                        plt.colorbar(im, ax=ax)
+                                        st.pyplot(fig)
+                                        
+                                        st.info(f"Grad-CAM shows which regions the model focuses on for the '{pred_class}' prediction.")
+                                    else:
+                                        st.warning("Could not generate Grad-CAM visualization. Showing original image instead.")
+                                        st.image(image, caption="Original Image", use_column_width=True)
+                                except Exception as e:
+                                    st.warning(f"Grad-CAM generation failed: {e}. Showing original image instead.")
+                                    st.image(image, caption="Original Image", use_column_width=True)
                         
                         # Model information
                         st.subheader("ℹ️ Model Information")
