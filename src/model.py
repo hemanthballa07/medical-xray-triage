@@ -261,7 +261,6 @@ def save_model(model, save_path, optimizer=None, epoch=None, metrics=None):
         checkpoint['metrics'] = metrics
     
     torch.save(checkpoint, save_path)
-    print(f"Model saved to: {save_path}")
 
 
 def load_model(load_path, device='cpu'):
@@ -298,41 +297,3 @@ def load_model(load_path, device='cpu'):
     return model, checkpoint_info
 
 
-if __name__ == "__main__":
-    # Test model creation
-    print("Testing model creation...")
-    
-    # Test ResNet50
-    model_resnet = create_model("resnet50", num_classes=1, pretrained=True)
-    summary_resnet = get_model_summary(model_resnet)
-    
-    print("ResNet50 Model Summary:")
-    print(f"  Total parameters: {summary_resnet['total_parameters']:,}")
-    print(f"  Trainable parameters: {summary_resnet['trainable_parameters']:,}")
-    print(f"  Model size: {summary_resnet['model_size_mb']:.2f} MB")
-    print(f"  Output shape: {summary_resnet['output_size']}")
-    
-    # Test EfficientNetV2-S
-    model_effnet = create_model("efficientnet_v2_s", num_classes=1, pretrained=True)
-    summary_effnet = get_model_summary(model_effnet)
-    
-    print("\nEfficientNetV2-S Model Summary:")
-    print(f"  Total parameters: {summary_effnet['total_parameters']:,}")
-    print(f"  Trainable parameters: {summary_effnet['trainable_parameters']:,}")
-    print(f"  Model size: {summary_effnet['model_size_mb']:.2f} MB")
-    print(f"  Output shape: {summary_effnet['output_size']}")
-    
-    # Test forward pass
-    dummy_input = torch.randn(2, 3, 320, 320)
-    
-    model_resnet.eval()
-    with torch.no_grad():
-        output_resnet = model_resnet(dummy_input)
-        prob_resnet = model_resnet.predict_proba(dummy_input)
-    
-    print(f"\nForward pass test:")
-    print(f"  Input shape: {dummy_input.shape}")
-    print(f"  ResNet50 output shape: {output_resnet.shape}")
-    print(f"  ResNet50 probabilities: {prob_resnet.flatten()}")
-    
-    print("\nModel creation and testing completed successfully!")

@@ -264,77 +264,100 @@ def get_simple_data_loader(labels_path, images_dir, batch_size=8, img_size=320,
     return data_loader, dataset
 
 
-def print_dataset_info(labels_path, images_dir):
+def create_pre_split_data_loaders(
+    data_dir, batch_size=8, img_size=320, num_workers=4, use_weighted_sampling=True
+):
     """
-    Print information about the dataset.
+    Create data loaders from pre-split NIH dataset structure.
+    
+    This function loads train, val, and test splits from separate CSV files
+    and image directories. Expected structure:
+        data_dir/
+            train_labels.csv, val_labels.csv, test_labels.csv
+            train/, val/, test/ (each containing NORMAL/ and PNEUMONIA/ folders)
     
     Args:
-        labels_path (str): Path to the labels CSV file
-        images_dir (str): Directory containing the images
+        data_dir (str): Root directory containing the pre-split dataset
+        batch_size (int): Batch size for data loaders
+        img_size (int): Size to resize images to
+        num_workers (int): Number of workers for data loading
+        use_weighted_sampling (bool): Whether to use weighted sampling for class balance
+    
+    Returns:
+        tuple: (train_loader, val_loader, test_loader, class_weights)
     """
-    dataset = ChestXrayDataset(labels_path, images_dir)
+    import os
     
-    print("Dataset Information")
-    print("=" * 50)
-    print(f"Total samples: {len(dataset)}")
+    # Define paths
+    train_labels_path = os.path.join(data_dir, "train_labels.csv")
+    val_labels_path = os.path.join(data_dir, "val_labels.csv")
+    test_labels_path = os.path.join(data_dir, "test_labels.csv")
     
-    class_counts = dataset.get_class_counts()
-    print(f"Class distribution:")
-    for class_id, count in sorted(class_counts.items()):
-        class_name = "Normal" if class_id == 0 else "Abnormal"
-        percentage = (count / len(dataset)) * 100
-        print(f"  {class_name} (class {class_id}): {count} ({percentage:.1f}%)")
+    train_images_dir = os.path.join(data_dir, "train")
+    val_images_dir = os.path.join(data_dir, "val")
+    test_images_dir = os.path.join(data_dir, "test")
     
-    # Check image properties
-    sample_image, _ = dataset[0]
-    if isinstance(sample_image, torch.Tensor):
-        print(f"Image shape: {sample_image.shape}")
-        print(f"Image dtype: {sample_image.dtype}")
-        print(f"Image range: [{sample_image.min():.3f}, {sample_image.max():.3f}]")
-
-
-if __name__ == "__main__":
-    # Test data loading
-    import sys
-    from pathlib import Path
-    
-    # Add src to path for imports
-    sys.path.append(str(Path(__file__).parent))
-    
-    from config import get_config
-    
-    # Get configuration
-    config = get_config()
-    
-    # Test with sample data
-    try:
-        print_dataset_info(config['labels_path'], config['images_dir'])
-        
-        # Test data loaders
-        train_loader, val_loader, test_loader, class_weights = create_data_loaders(
-            labels_path=config['labels_path'],
-            images_dir=config['images_dir'],
-            batch_size=config['batch_size'],
-            img_size=config['img_size'],
-            num_workers=config['num_workers']
+    # Check if all files exist
+    if not all(os.path.exists(p) for p in [train_labels_path, val_labels_path, test_labels_path]):
+        raise FileNotFoundError(
+            f"Pre-split dataset not found in {data_dir}. "
+            f"Expected files: train_labels.csv, val_labels.csv, test_labels.csv"
         )
-        
-        print(f"\nData Loader Information")
-        print("=" * 50)
-        print(f"Train batches: {len(train_loader)}")
-        print(f"Val batches: {len(val_loader)}")
-        print(f"Test batches: {len(test_loader)}")
-        print(f"Class weights: {class_weights}")
-        
-        # Test a batch
-        for images, labels in train_loader:
-            print(f"\nBatch Information")
-            print("=" * 30)
-            print(f"Images shape: {images.shape}")
-            print(f"Labels shape: {labels.shape}")
-            print(f"Labels: {labels}")
-            break
-            
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        print("Please run 'python src/make_sample_data.py' first to create sample data.")
+    
+    # Get transforms
+    train_transform = get_transforms(img_size, is_training=True)
+    val_transform = get_transforms(img_size, is_training=False)
+    
+    # Create datasets
+    train_dataset = ChestXrayDataset(train_labels_path, train_images_dir, transform=train_transform)
+    val_dataset = ChestXrayDataset(val_labels_path, val_images_dir, transform=val_transform)
+    test_dataset = ChestXrayDataset(test_labels_path, test_images_dir, transform=val_transform)
+    
+    # Calculate class weights for training set
+    train_labels = train_dataset.labels_df['label'].values
+    class_counts = Counter(train_labels)
+    total_samples = len(train_labels)
+    class_weights = {
+        class_id: total_samples / (len(class_counts) * count)
+        for class_id, count in class_counts.items()
+    }
+    
+    # Create weighted sampler for training
+    train_sampler = None
+    if use_weighted_sampling and len(class_counts) > 1:
+        sample_weights = [class_weights[label] for label in train_labels]
+        train_sampler = WeightedRandomSampler(
+            weights=sample_weights,
+            num_samples=len(sample_weights),
+            replacement=True
+        )
+    
+    # Create data loaders
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        sampler=train_sampler,
+        shuffle=(train_sampler is None),
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available()
+    )
+    
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available()
+    )
+    
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available()
+    )
+    
+    return train_loader, val_loader, test_loader, class_weights
+
+

@@ -394,7 +394,10 @@ def main():
         print()
     
     # Get device
-    device = torch.device(config['device'])
+    if config.get('device', 'auto') == 'auto':
+        device = get_device()
+    else:
+        device = torch.device(config['device'])
     print(f"Using device: {device}")
     
     # Load model

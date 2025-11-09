@@ -318,24 +318,3 @@ def format_time(seconds):
         return f"{seconds/3600:.2f}h"
 
 
-if __name__ == "__main__":
-    # Test utility functions
-    print("Testing utility functions...")
-    
-    # Test seeding
-    seed_everything(42)
-    print("✓ Seeding works")
-    
-    # Test device detection
-    device = get_device()
-    print(f"✓ Device detection: {device}")
-    
-    # Test metrics computation with dummy data
-    y_true = np.array([0, 1, 0, 1, 1])
-    y_prob = np.array([0.1, 0.9, 0.2, 0.8, 0.7])
-    
-    metrics = compute_metrics(y_true, y_prob)
-    print("✓ Metrics computation works")
-    print_metrics_table(metrics, "Test Metrics")
-    
-    print("All utility functions working correctly!")
