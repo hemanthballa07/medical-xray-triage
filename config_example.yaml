@@ -2,7 +2,12 @@
 # Usage: python -m src.train --config config_example.yaml
 
 # Data configuration
-data_dir: "./data/sample"
+# For Chest X-ray Pneumonia dataset (default for local testing):
+data_dir: "./data/chest_xray"
+# For sample dataset (4 synthetic images):
+# data_dir: "./data/sample"
+# For NIH Chest X-ray dataset (large-scale, ~112GB):
+# data_dir: "./data/nih_chest_xray"
 output_dir: "./results"
 img_size: 320
 

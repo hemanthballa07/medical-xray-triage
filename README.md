@@ -182,12 +182,113 @@ python -m src.train --data_dir ./data/real
 class_weights = {0: 1.0, 1: 2.0}  # Give more weight to minority class
 ```
 
+### Chest X-ray Pneumonia Dataset (Default for Local Testing)
+
+The project uses the [Chest X-ray Pneumonia Dataset](https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia) as the default dataset for local testing and training. This is a smaller, manageable dataset (~2.3GB) that's ideal for local development and experimentation.
+
+#### Quick Setup
+
+1. **Download the dataset** (requires Kaggle API setup):
+   ```bash
+   kaggle datasets download -d paultimothymooney/chest-xray-pneumonia -p ./data/chest_xray --unzip
+   ```
+
+2. **Prepare the dataset** (generate label CSVs and resize images):
+   ```bash
+   python scripts/prepare_chest_xray.py
+   ```
+
+3. **Train with the dataset**:
+   ```bash
+   python -m src.train --data_dir ./data/chest_xray --epochs 5
+   ```
+
+#### Dataset Structure
+
+The dataset comes pre-split into train/val/test folders:
+
+```
+data/chest_xray/
+├── train/
+│   ├── NORMAL/          # 1,341 images
+│   └── PNEUMONIA/      # 3,875 images
+├── val/
+│   ├── NORMAL/         # 8 images
+│   └── PNEUMONIA/      # 8 images
+├── test/
+│   ├── NORMAL/         # 234 images
+│   └── PNEUMONIA/      # 390 images
+├── train_labels.csv
+├── val_labels.csv
+├── test_labels.csv
+└── labels.csv
+```
+
+#### Expected Performance
+
+On the Chest X-ray Pneumonia dataset, the model typically achieves:
+- **AUROC**: ~0.95
+- **F1-Score**: ~0.95
+- **Sensitivity**: ~0.98
+- **Specificity**: ~0.87
+
+### NIH Chest X-ray Dataset (Large-Scale Training)
+
+The project also supports the [NIH Chest X-ray Dataset](https://www.kaggle.com/datasets/nih-chest-xrays/data) for large-scale training. This is a much larger dataset (~112GB) suitable for production training.
+
+#### Quick Setup
+
+1. **Download the dataset** (requires Kaggle API setup):
+   ```bash
+   python scripts/download_nih_dataset.py --output_dir ./data/nih_chest_xray
+   ```
+
+2. **Preprocess the dataset**:
+   ```bash
+   python src/preprocess_nih.py --data_dir ./data/nih_chest_xray
+   ```
+
+3. **Train with NIH dataset**:
+   ```bash
+   python -m src.train --data_dir ./data/nih_chest_xray --config config_example.yaml
+   ```
+
+#### What the Preprocessing Does
+
+- Filters for "Pneumonia" vs "No Finding" cases
+- Splits data into train/val/test (70/15/15) with stratification
+- Resizes all images to 320×320 pixels
+- Organizes into class folders (NORMAL and PNEUMONIA)
+- Generates labels CSV files for each split
+
+#### Directory Structure After Preprocessing
+
+```
+data/nih_chest_xray/
+├── train/
+│   ├── NORMAL/
+│   └── PNEUMONIA/
+├── val/
+│   ├── NORMAL/
+│   └── PNEUMONIA/
+├── test/
+│   ├── NORMAL/
+│   └── PNEUMONIA/
+├── train_labels.csv
+├── val_labels.csv
+├── test_labels.csv
+└── labels.csv
+```
+
+For detailed instructions, see [data/nih_chest_xray/README.md](data/nih_chest_xray/README.md).
+
 ### Dataset Requirements
 
 - **Image formats**: PNG, JPG, JPEG
 - **Image size**: Any size (will be resized to 320x320)
 - **Labels**: Binary (0=Normal, 1=Abnormal)
 - **File structure**: Images in `images/` subdirectory, labels in CSV
+- **NIH dataset**: Pre-split structure with train/val/test folders (automatic detection)
 
 ## Model Performance
 

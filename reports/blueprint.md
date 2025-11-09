@@ -4,11 +4,6 @@ author: "Hemanth Balla"
 date: "October 19, 2025"
 ---
 
-# Medical X-ray Triage System - Technical Blueprint
-
-**Author:** Hemanth Balla  
-**Date:** October 19, 2025
-
 ## Executive Summary
 
 This document outlines the technical architecture and implementation details for a Medical X-ray Triage system that uses deep learning to detect abnormalities in chest X-ray images. The system combines convolutional neural networks (CNNs), Grad-CAM interpretability, and a Streamlit web interface to provide an end-to-end solution for medical image analysis.
@@ -613,10 +608,10 @@ This system serves as a foundation for advancing medical AI research while maint
 
 ## References
 
-- Selvaraju, R. R., et al. "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization." *International Conference on Computer Vision (ICCV)*, 2017.
-- He, K., et al. "Deep Residual Learning for Image Recognition." *Conference on Computer Vision and Pattern Recognition (CVPR)*, 2016.
-- Tan, M., & Le, Q. "EfficientNetV2: Smaller Models and Faster Training." *International Conference on Machine Learning (ICML)*, 2021.
-- Paszke, A., et al. "PyTorch: An Imperative Style, High-Performance Deep Learning Library." *Advances in Neural Information Processing Systems (NeurIPS)*, 2019.
+- Selvaraju, R. R., et al. "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization." _International Conference on Computer Vision (ICCV)_, 2017.
+- He, K., et al. "Deep Residual Learning for Image Recognition." _Conference on Computer Vision and Pattern Recognition (CVPR)_, 2016.
+- Tan, M., & Le, Q. "EfficientNetV2: Smaller Models and Faster Training." _International Conference on Machine Learning (ICML)_, 2021.
+- Paszke, A., et al. "PyTorch: An Imperative Style, High-Performance Deep Learning Library." _Advances in Neural Information Processing Systems (NeurIPS)_, 2019.
 
 ---
 
