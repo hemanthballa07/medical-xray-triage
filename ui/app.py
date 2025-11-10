@@ -57,34 +57,216 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# Custom CSS - Force light theme and ensure all text is visible
 st.markdown("""
 <style>
+    /* Force light theme by overriding Streamlit's theme variables */
+    :root {
+        --primary-color: #1f77b4;
+        --background-color: #ffffff;
+        --secondary-background-color: #f0f2f6;
+        --text-color: #262730;
+        --font: "Source Sans Pro", sans-serif;
+    }
+    
+    /* Force light background for entire app */
+    .stApp {
+        background-color: #ffffff !important;
+        color: #262730 !important;
+    }
+    
+    /* Force light background for main content */
+    .main {
+        background-color: #ffffff !important;
+        color: #262730 !important;
+    }
+    
+    /* Force light background for sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #f0f2f6 !important;
+        color: #262730 !important;
+    }
+    
+    /* Force light background for block container */
+    .block-container {
+        background-color: #ffffff !important;
+        color: #262730 !important;
+    }
+    
+    /* Make text dark and visible - but exclude buttons */
+    body, .main, section, div, p, span, label, h1, h2, h3, h4, h5, h6 {
+        color: #262730 !important;
+    }
+    
+    /* Buttons should have proper contrast - override the above */
+    .stButton > button,
+    button[data-baseweb="button"] {
+        background-color: #1f77b4 !important;
+        color: #ffffff !important;
+        border: none !important;
+    }
+    
+    .stButton > button:hover,
+    button[data-baseweb="button"]:hover {
+        background-color: #1a5f8f !important;
+        color: #ffffff !important;
+    }
+    
+    /* Dropdowns and selectboxes - Baseweb components */
+    .stSelectbox > div > div,
+    div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: #262730 !important;
+    }
+    
+    .stSelectbox label,
+    label[data-baseweb="label"] {
+        color: #262730 !important;
+    }
+    
+    /* Baseweb select value text */
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div {
+        color: #262730 !important;
+        background-color: #ffffff !important;
+    }
+    
+    /* Dropdown options */
+    ul[role="listbox"] li,
+    div[data-baseweb="menu"] li {
+        background-color: #ffffff !important;
+        color: #262730 !important;
+    }
+    
+    ul[role="listbox"] li:hover,
+    div[data-baseweb="menu"] li:hover {
+        background-color: #f0f2f6 !important;
+        color: #262730 !important;
+    }
+    
+    /* Sliders */
+    .stSlider label {
+        color: #262730 !important;
+    }
+    
+    /* Headers and text */
+    h1, h2, h3, h4, h5, h6 {
+        color: #262730 !important;
+    }
+    
+    p, span, div, label {
+        color: #262730 !important;
+    }
+    
+    /* Custom header */
     .main-header {
         font-size: 2.5rem;
-        color: #1f77b4;
+        color: #1f77b4 !important;
         text-align: center;
         margin-bottom: 2rem;
     }
+    
+    /* Disclaimer box */
     .disclaimer {
-        background-color: #fff3cd;
+        background-color: #fff3cd !important;
         border: 1px solid #ffeaa7;
         border-radius: 5px;
         padding: 1rem;
         margin-bottom: 2rem;
+        color: #262730 !important;
     }
+    
+    .disclaimer p,
+    .disclaimer h4 {
+        color: #262730 !important;
+    }
+    
+    /* Metric card */
     .metric-card {
-        background-color: #f8f9fa;
+        background-color: #f8f9fa !important;
         padding: 1rem;
         border-radius: 5px;
         border-left: 4px solid #1f77b4;
+        color: #262730 !important;
     }
+    
+    .metric-card p,
+    .metric-card h3,
+    .metric-card strong {
+        color: #262730 !important;
+    }
+    
+    /* Error message */
     .error-message {
         background-color: #f8d7da;
         border: 1px solid #f5c6cb;
         border-radius: 5px;
         padding: 1rem;
-        color: #721c24;
+        color: #721c24 !important;
+    }
+    
+    /* File uploader */
+    .stFileUploader label {
+        color: #262730 !important;
+    }
+    
+    /* Info boxes */
+    .stInfo,
+    .stWarning,
+    .stError,
+    .stSuccess {
+        color: #262730 !important;
+    }
+    
+    /* Make all images responsive - scale with browser zoom and container */
+    .stImage img,
+    img[data-testid="stImage"],
+    [data-testid="stImage"] img,
+    .element-container img {
+        max-width: 100% !important;
+        height: auto !important;
+        width: auto !important;
+        object-fit: contain !important;
+        display: block;
+    }
+    
+    /* Ensure image containers don't force fixed widths */
+    [data-testid="stImage"],
+    div[data-testid="stImage"] {
+        max-width: 100% !important;
+    }
+    
+    /* Make matplotlib/plotly containers scale with viewport */
+    .stPlotlyChart,
+    [data-testid="stPyplot"],
+    .stPyplot {
+        max-width: 100% !important;
+        width: auto !important;
+    }
+    
+    /* Prevent fixed pixel widths on image containers */
+    div[data-testid="stImage"] > div {
+        width: auto !important;
+        max-width: 100% !important;
+    }
+    
+    /* Top menu bar */
+    header[data-testid="stHeader"] {
+        background-color: #ffffff !important;
+    }
+    
+    header[data-testid="stHeader"] * {
+        color: #262730 !important;
+    }
+    
+    /* Sidebar text */
+    [data-testid="stSidebar"] * {
+        color: #262730 !important;
+    }
+    
+    /* Checkbox labels */
+    .stCheckbox label {
+        color: #262730 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -394,13 +576,15 @@ def main():
                                         # Display Grad-CAM overlay
                                         st.image(gradcam_img, caption=f"Grad-CAM Overlay ({cam_method})", use_column_width=True)
                                         
-                                        # Display heatmap
-                                        fig, ax = plt.subplots(figsize=(6, 4))
+                                        # Display heatmap with responsive sizing
+                                        fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
                                         im = ax.imshow(grayscale_cam, cmap='jet')
                                         ax.set_title("Grad-CAM Heatmap")
                                         ax.axis('off')
                                         plt.colorbar(im, ax=ax)
+                                        plt.tight_layout()
                                         st.pyplot(fig)
+                                        plt.close(fig)  # Close figure to free memory
                                         
                                         st.info(f"Grad-CAM shows which regions the model focuses on for the '{pred_class}' prediction.")
                                     else:
