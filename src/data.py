@@ -106,10 +106,12 @@ def get_transforms(img_size=320, is_training=True):
     """
     if is_training:
         transform = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
+            transforms.Resize((img_size + 32, img_size + 32)),
+            transforms.RandomCrop(img_size),
             transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=5),
-            transforms.ColorJitter(brightness=0.1, contrast=0.1),
+            transforms.RandomRotation(degrees=10),
+            transforms.ColorJitter(brightness=0.15, contrast=0.15, saturation=0.1),
+            transforms.RandomAffine(degrees=0, translate=(0.05, 0.05)),
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.485, 0.456, 0.406], 
                                std=[0.229, 0.224, 0.225])
@@ -126,21 +128,27 @@ def get_transforms(img_size=320, is_training=True):
 
 
 def create_data_loaders(labels_path, images_dir, batch_size=8, img_size=320, 
-                       train_split=0.6, val_split=0.2, test_split=0.2,
-                       num_workers=4, use_weighted_sampling=True):
+                       train_split=0.70, val_split=0.15, test_split=0.15,
+                       num_workers=4, use_weighted_sampling=True, random_state=42):
     """
     Create data loaders for training, validation, and testing.
+    
+    We use a 70/15/15 train/val/test split to ensure:
+    - enough data for training,
+    - a reasonably sized validation set for early stopping,
+    - a held-out test set for final reporting.
     
     Args:
         labels_path (str): Path to the labels CSV file
         images_dir (str): Directory containing the images
         batch_size (int): Batch size for data loaders
         img_size (int): Size to resize images to
-        train_split (float): Fraction of data for training
-        val_split (float): Fraction of data for validation
-        test_split (float): Fraction of data for testing
+        train_split (float): Fraction of data for training (default: 0.70)
+        val_split (float): Fraction of data for validation (default: 0.15)
+        test_split (float): Fraction of data for testing (default: 0.15)
         num_workers (int): Number of workers for data loading
         use_weighted_sampling (bool): Whether to use weighted sampling for class balance
+        random_state (int): Random seed for reproducibility (default: 42)
     
     Returns:
         tuple: (train_loader, val_loader, test_loader, class_weights)
@@ -156,16 +164,33 @@ def create_data_loaders(labels_path, images_dir, batch_size=8, img_size=320,
     labels = full_dataset.labels_df['label'].values
     indices = np.arange(len(labels))
     
-    # Split indices
+    print(f"Total dataset size: {len(labels)}")
+    print(f"Class distribution: {dict(Counter(labels))}")
+    
+    # We use a 70/15/15 train/val/test split to ensure:
+    # - enough data for training,
+    # - a reasonably sized validation set for early stopping,
+    # - a held-out test set for final reporting.
+    # Split indices with stratification
     train_indices, temp_indices = train_test_split(
         indices, test_size=(val_split + test_split), 
-        random_state=42, stratify=labels
+        random_state=random_state, stratify=labels
     )
     
     val_indices, test_indices = train_test_split(
         temp_indices, test_size=(test_split / (val_split + test_split)),
-        random_state=42, stratify=labels[temp_indices]
+        random_state=random_state, stratify=labels[temp_indices]
     )
+    
+    # Print split sizes
+    print(f"\nDataset Split Sizes:")
+    print(f"  Train size: {len(train_indices)}")
+    print(f"  Val size: {len(val_indices)}")
+    print(f"  Test size: {len(test_indices)}")
+    print(f"  Total: {len(train_indices) + len(val_indices) + len(test_indices)}")
+    print(f"  Train class distribution: {dict(Counter(labels[train_indices]))}")
+    print(f"  Val class distribution: {dict(Counter(labels[val_indices]))}")
+    print(f"  Test class distribution: {dict(Counter(labels[test_indices]))}")
     
     # Create datasets with transforms
     train_transform = get_transforms(img_size, is_training=True)
@@ -264,17 +289,66 @@ def get_simple_data_loader(labels_path, images_dir, batch_size=8, img_size=320,
     return data_loader, dataset
 
 
+class UnifiedChestXrayDataset(Dataset):
+    """
+    Unified dataset class that can handle images from different directories
+    based on the original split (train/val/test).
+    """
+    def __init__(self, data_df, train_images_dir, val_images_dir, test_images_dir, transform=None):
+        self.data_df = data_df.reset_index(drop=True)
+        self.transform = transform
+        
+        # Map original splits to image directories
+        self.image_dirs = {
+            'train': train_images_dir,
+            'val': val_images_dir,
+            'test': test_images_dir
+        }
+    
+    def __len__(self):
+        return len(self.data_df)
+    
+    def __getitem__(self, idx):
+        row = self.data_df.iloc[idx]
+        filepath = row['filepath']
+        label = row['label']
+        original_split = row['original_split']
+        
+        # Get correct image directory based on original split
+        images_dir = self.image_dirs[original_split]
+        
+        # Filepath already includes class folder (NORMAL/ or PNEUMONIA/)
+        image_path = os.path.join(images_dir, filepath)
+        
+        # Verify image exists
+        if not os.path.exists(image_path):
+            raise FileNotFoundError(f"Image not found: {image_path}")
+        
+        image = Image.open(image_path).convert('RGB')
+        
+        if self.transform:
+            image = self.transform(image)
+        
+        return image, torch.tensor(label, dtype=torch.float32)
+
+
 def create_pre_split_data_loaders(
-    data_dir, batch_size=8, img_size=320, num_workers=4, use_weighted_sampling=True
+    data_dir, batch_size=8, img_size=320, num_workers=4, use_weighted_sampling=True,
+    train_split=0.70, val_split=0.15, test_split=0.15, random_state=42
 ):
     """
-    Create data loaders from pre-split NIH dataset structure.
+    Create data loaders from pre-split NIH dataset structure with proper re-splitting.
     
-    This function loads train, val, and test splits from separate CSV files
-    and image directories. Expected structure:
+    This function loads data from separate CSV files and re-splits them into proper
+    train/val/test splits. Expected structure:
         data_dir/
             train_labels.csv, val_labels.csv, test_labels.csv
             train/, val/, test/ (each containing NORMAL/ and PNEUMONIA/ folders)
+    
+    We use a 70/15/15 train/val/test split to ensure:
+    - enough data for training,
+    - a reasonably sized validation set for early stopping,
+    - a held-out test set for final reporting.
     
     Args:
         data_dir (str): Root directory containing the pre-split dataset
@@ -282,6 +356,10 @@ def create_pre_split_data_loaders(
         img_size (int): Size to resize images to
         num_workers (int): Number of workers for data loading
         use_weighted_sampling (bool): Whether to use weighted sampling for class balance
+        train_split (float): Fraction of data for training (default: 0.70)
+        val_split (float): Fraction of data for validation (default: 0.15)
+        test_split (float): Fraction of data for testing (default: 0.15)
+        random_state (int): Random seed for reproducibility (default: 42)
     
     Returns:
         tuple: (train_loader, val_loader, test_loader, class_weights)
@@ -304,23 +382,90 @@ def create_pre_split_data_loaders(
             f"Expected files: train_labels.csv, val_labels.csv, test_labels.csv"
         )
     
+    # Load all data and combine into a single dataset
+    print("Loading and combining all data splits...")
+    train_df = pd.read_csv(train_labels_path)
+    val_df = pd.read_csv(val_labels_path)
+    test_df = pd.read_csv(test_labels_path)
+    
+    # Combine all dataframes
+    # Add a column to track original split for reference
+    train_df['original_split'] = 'train'
+    val_df['original_split'] = 'val'
+    test_df['original_split'] = 'test'
+    
+    # Combine all data
+    all_data = pd.concat([train_df, val_df, test_df], ignore_index=True)
+    
+    # Get labels for stratified splitting
+    all_labels = all_data['label'].values
+    all_indices = np.arange(len(all_labels))
+    
+    print(f"Total dataset size: {len(all_data)}")
+    print(f"Class distribution: {dict(Counter(all_labels))}")
+    
+    # We use a 70/15/15 train/val/test split to ensure:
+    # - enough data for training,
+    # - a reasonably sized validation set for early stopping,
+    # - a held-out test set for final reporting.
+    # Split indices with stratification
+    train_indices, temp_indices = train_test_split(
+        all_indices,
+        test_size=(val_split + test_split),
+        random_state=random_state,
+        stratify=all_labels
+    )
+    
+    val_indices, test_indices = train_test_split(
+        temp_indices,
+        test_size=(test_split / (val_split + test_split)),
+        random_state=random_state,
+        stratify=all_labels[temp_indices]
+    )
+    
     # Get transforms
     train_transform = get_transforms(img_size, is_training=True)
     val_transform = get_transforms(img_size, is_training=False)
     
-    # Create datasets
-    train_dataset = ChestXrayDataset(train_labels_path, train_images_dir, transform=train_transform)
-    val_dataset = ChestXrayDataset(val_labels_path, val_images_dir, transform=val_transform)
-    test_dataset = ChestXrayDataset(test_labels_path, test_images_dir, transform=val_transform)
+    # Create unified dataset
+    full_dataset = UnifiedChestXrayDataset(
+        all_data, 
+        train_images_dir, 
+        val_images_dir, 
+        test_images_dir,
+        transform=None
+    )
+    
+    # Create subset datasets with transforms
+    train_dataset = torch.utils.data.Subset(full_dataset, train_indices)
+    val_dataset = torch.utils.data.Subset(full_dataset, val_indices)
+    test_dataset = torch.utils.data.Subset(full_dataset, test_indices)
+    
+    # Apply transforms to subsets
+    # We need to set transform on the underlying dataset
+    train_dataset.dataset.transform = train_transform
+    val_dataset.dataset.transform = val_transform
+    test_dataset.dataset.transform = val_transform
+    
+    # Print split sizes
+    print(f"\nDataset Split Sizes:")
+    print(f"  Train size: {len(train_dataset)}")
+    print(f"  Val size: {len(val_dataset)}")
+    print(f"  Test size: {len(test_dataset)}")
+    print(f"  Total: {len(train_dataset) + len(val_dataset) + len(test_dataset)}")
     
     # Calculate class weights for training set
-    train_labels = train_dataset.labels_df['label'].values
+    train_labels = all_labels[train_indices]
     class_counts = Counter(train_labels)
     total_samples = len(train_labels)
     class_weights = {
         class_id: total_samples / (len(class_counts) * count)
         for class_id, count in class_counts.items()
     }
+    
+    print(f"  Train class distribution: {dict(Counter(train_labels))}")
+    print(f"  Val class distribution: {dict(Counter(all_labels[val_indices]))}")
+    print(f"  Test class distribution: {dict(Counter(all_labels[test_indices]))}")
     
     # Create weighted sampler for training
     train_sampler = None
