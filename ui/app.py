@@ -23,6 +23,9 @@ sys.path.append(str(Path(__file__).parent.parent / "src"))
 from model import create_model, load_model
 from data import get_transforms
 from utils import get_device, seed_everything
+from plotting import plot_precision_recall_curve, plot_roc_vs_threshold, plot_gradcam_comparison
+from uncertainty import monte_carlo_dropout_predict, compute_confidence_interval
+import time
 
 # Try to import Grad-CAM
 try:
@@ -466,12 +469,21 @@ def main():
     if GRADCAM_AVAILABLE:
         st.sidebar.subheader("Grad-CAM Parameters")
         
-        cam_method = st.sidebar.selectbox(
-            "Grad-CAM Method",
-            options=["GradCAM", "GradCAMPlusPlus", "XGradCAM"],
-            index=0,
-            help="Method for generating Grad-CAM visualizations"
+        show_all_cam_methods = st.sidebar.checkbox(
+            "Compare All Grad-CAM Methods",
+            value=False,
+            help="Show side-by-side comparison of all Grad-CAM methods"
         )
+        
+        if not show_all_cam_methods:
+            cam_method = st.sidebar.selectbox(
+                "Grad-CAM Method",
+                options=["GradCAM", "GradCAMPlusPlus", "XGradCAM"],
+                index=0,
+                help="Method for generating Grad-CAM visualizations"
+            )
+        else:
+            cam_method = "All"
         
         show_gradcam = st.sidebar.checkbox(
             "Show Grad-CAM",
@@ -482,6 +494,27 @@ def main():
         st.sidebar.warning("Grad-CAM not available. Install with: pip install pytorch-grad-cam")
         show_gradcam = False
         cam_method = "GradCAM"
+        show_all_cam_methods = False
+    
+    # Uncertainty estimation
+    st.sidebar.subheader("Uncertainty Estimation")
+    use_uncertainty = st.sidebar.checkbox(
+        "Enable Uncertainty Estimation",
+        value=False,
+        help="Use Monte-Carlo dropout for uncertainty quantification"
+    )
+    
+    if use_uncertainty:
+        n_mc_samples = st.sidebar.slider(
+            "MC Samples",
+            min_value=10,
+            max_value=200,
+            value=50,
+            step=10,
+            help="Number of Monte-Carlo samples for uncertainty estimation"
+        )
+    else:
+        n_mc_samples = 50
     
     # Device selection
     device_options = ["auto", "cpu", "cuda", "mps"]
@@ -498,114 +531,286 @@ def main():
     with col1:
         st.header("📤 Upload X-ray Image")
         
-        uploaded_file = st.file_uploader(
-            "Choose an X-ray image",
-            type=['png', 'jpg', 'jpeg'],
-            help="Upload a chest X-ray image for analysis"
+        upload_mode = st.radio(
+            "Upload Mode",
+            options=["Single Image", "Batch Upload"],
+            horizontal=True,
+            help="Choose single image or batch upload mode"
         )
         
+        if upload_mode == "Single Image":
+            uploaded_file = st.file_uploader(
+                "Choose an X-ray image",
+                type=['png', 'jpg', 'jpeg'],
+                help="Upload a chest X-ray image for analysis"
+            )
+            uploaded_files = [uploaded_file] if uploaded_file else []
+        else:
+            uploaded_files = st.file_uploader(
+                "Choose X-ray images (multiple)",
+                type=['png', 'jpg', 'jpeg'],
+                accept_multiple_files=True,
+                help="Upload multiple chest X-ray images for batch analysis"
+            )
+            uploaded_file = uploaded_files[0] if uploaded_files else None
+        
         if uploaded_file is not None:
-            # Display uploaded image
-            image = Image.open(uploaded_file).convert('RGB')
-            st.image(image, caption="Uploaded X-ray Image", use_column_width=True)
-            
-            # Load model
-            if model_path and os.path.exists(model_path):
-                with st.spinner("Loading model..."):
-                    model, checkpoint_info = load_trained_model(model_path, device)
+            # Handle batch vs single image
+            if upload_mode == "Batch Upload" and len(uploaded_files) > 1:
+                st.info(f"Processing {len(uploaded_files)} images in batch mode...")
                 
-                if model is not None:
-                    st.success(f"Model loaded: {checkpoint_info['model_name']}")
+                # Load model once
+                if model_path and os.path.exists(model_path):
+                    with st.spinner("Loading model..."):
+                        model, checkpoint_info = load_trained_model(model_path, device)
                     
-                    # Preprocess image
-                    transform = get_transforms(img_size=img_size, is_training=False)
-                    input_tensor = transform(image).unsqueeze(0).to(device)
-                    
-                    # Run inference - compute logits and probability separately
-                    with st.spinner("Running inference..."):
-                        model.eval()
-                        with torch.no_grad():
-                            logits = model(input_tensor)  # shape [1, 1] for binary classification
-                            prediction_prob = torch.sigmoid(logits)[0, 0].item()
-                    
-                    # Display results
-                    with col2:
-                        st.header("📊 Analysis Results")
+                    if model is not None:
+                        st.success(f"Model loaded: {checkpoint_info['model_name']}")
                         
-                        # Prediction
-                        pred_class = "Abnormal" if prediction_prob > threshold else "Normal"
-                        confidence = max(prediction_prob, 1 - prediction_prob)
+                        # Batch processing
+                        transform = get_transforms(img_size=img_size, is_training=False)
+                        batch_results = []
                         
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <h3>Prediction</h3>
-                            <p><strong>Class:</strong> {pred_class}</p>
-                            <p><strong>Probability:</strong> {prediction_prob:.3f}</p>
-                            <p><strong>Confidence:</strong> {confidence:.3f}</p>
-                            <p><strong>Threshold:</strong> {threshold:.3f}</p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Risk assessment
-                        if prediction_prob > threshold:
-                            risk_level = "High" if prediction_prob > 0.8 else "Medium"
-                            risk_color = "#dc3545" if risk_level == "High" else "#fd7e14"
-                        else:
-                            risk_level = "Low"
-                            risk_color = "#28a745"
-                        
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <h3>Risk Assessment</h3>
-                            <p><strong>Risk Level:</strong> <span style="color: {risk_color};">{risk_level}</span></p>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Grad-CAM visualization
-                        if show_gradcam and GRADCAM_AVAILABLE:
-                            st.subheader("🎯 Grad-CAM Visualization")
+                        progress_bar = st.progress(0)
+                        for idx, uploaded_file in enumerate(uploaded_files):
+                            try:
+                                image = Image.open(uploaded_file).convert('RGB')
+                                input_tensor = transform(image).unsqueeze(0).to(device)
+                                
+                                # Inference
+                                model.eval()
+                                with torch.no_grad():
+                                    logits = model(input_tensor)
+                                    prob = torch.sigmoid(logits)[0, 0].item()
+                                
+                                batch_results.append({
+                                    'filename': uploaded_file.name,
+                                    'image': image,
+                                    'probability': prob,
+                                    'prediction': "Abnormal" if prob > threshold else "Normal"
+                                })
+                            except Exception as e:
+                                st.warning(f"Error processing {uploaded_file.name}: {e}")
                             
-                            with st.spinner("Generating Grad-CAM..."):
-                                try:
-                                    pred_prob, gradcam_img, grayscale_cam = generate_gradcam_streamlit(
-                                        model, input_tensor, checkpoint_info['model_name'], 
-                                        device, cam_method
-                                    )
-                                    
-                                    if gradcam_img is not None and grayscale_cam is not None:
-                                        # Display Grad-CAM overlay
-                                        st.image(gradcam_img, caption=f"Grad-CAM Overlay ({cam_method})", use_column_width=True)
-                                        
-                                        # Display heatmap with responsive sizing
-                                        fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
-                                        im = ax.imshow(grayscale_cam, cmap='jet')
-                                        ax.set_title("Grad-CAM Heatmap")
-                                        ax.axis('off')
-                                        plt.colorbar(im, ax=ax)
-                                        plt.tight_layout()
-                                        st.pyplot(fig)
-                                        plt.close(fig)  # Close figure to free memory
-                                        
-                                        st.info(f"Grad-CAM shows which regions the model focuses on for the '{pred_class}' prediction.")
-                                    else:
-                                        st.warning("Could not generate Grad-CAM visualization. Showing original image instead.")
-                                        st.image(image, caption="Original Image", use_column_width=True)
-                                except Exception as e:
-                                    st.warning(f"Grad-CAM generation failed: {e}. Showing original image instead.")
-                                    st.image(image, caption="Original Image", use_column_width=True)
+                            progress_bar.progress((idx + 1) / len(uploaded_files))
                         
-                        # Model information
-                        st.subheader("ℹ️ Model Information")
-                        st.write(f"**Model:** {checkpoint_info['model_name']}")
-                        st.write(f"**Device:** {device}")
-                        st.write(f"**Image Size:** {img_size}x{img_size}")
-                        st.write(f"**Grad-CAM Method:** {cam_method}")
+                        # Display batch results
+                        st.subheader("📊 Batch Results")
+                        for result in batch_results:
+                            col_img, col_info = st.columns([1, 2])
+                            with col_img:
+                                st.image(result['image'], caption=result['filename'], use_column_width=True)
+                            with col_info:
+                                st.write(f"**File:** {result['filename']}")
+                                st.write(f"**Prediction:** {result['prediction']}")
+                                st.write(f"**Probability:** {result['probability']:.3f}")
+                                st.write("---")
+                        
+                        # Summary statistics
+                        probs = [r['probability'] for r in batch_results]
+                        st.subheader("📈 Batch Statistics")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Total Images", len(batch_results))
+                        with col2:
+                            st.metric("Abnormal", sum(1 for r in batch_results if r['prediction'] == "Abnormal"))
+                        with col3:
+                            st.metric("Normal", sum(1 for r in batch_results if r['prediction'] == "Normal"))
+                        with col4:
+                            st.metric("Avg Probability", f"{np.mean(probs):.3f}")
+                    else:
+                        st.error("Failed to load model.")
+                else:
+                    st.warning("No model file found.")
+            else:
+                # Single image processing (existing code)
+                image = Image.open(uploaded_file).convert('RGB')
+                st.image(image, caption="Uploaded X-ray Image", use_column_width=True)
+                
+                # Load model
+                if model_path and os.path.exists(model_path):
+                    with st.spinner("Loading model..."):
+                        model, checkpoint_info = load_trained_model(model_path, device)
+                    
+                    if model is not None:
+                        st.success(f"Model loaded: {checkpoint_info['model_name']}")
+                        
+                        # Preprocess image
+                        transform = get_transforms(img_size=img_size, is_training=False)
+                        input_tensor = transform(image).unsqueeze(0).to(device)
+                        
+                        # Run inference with performance timing
+                        inference_start = time.time()
+                        with st.spinner("Running inference..."):
+                            model.eval()
+                            with torch.no_grad():
+                                logits = model(input_tensor)  # shape [1, 1] for binary classification
+                                prediction_prob = torch.sigmoid(logits)[0, 0].item()
+                        inference_time = (time.time() - inference_start) * 1000  # ms
+                        
+                        # Uncertainty estimation if enabled
+                        uncertainty_mean = prediction_prob
+                        uncertainty_std = 0.0
+                        confidence_lower = prediction_prob
+                        confidence_upper = prediction_prob
+                        
+                        if use_uncertainty:
+                            with st.spinner("Estimating uncertainty..."):
+                                try:
+                                    uncertainty_mean, uncertainty_std, all_probs = monte_carlo_dropout_predict(
+                                        model, input_tensor, n_samples=n_mc_samples
+                                    )
+                                    confidence_lower, confidence_upper = compute_confidence_interval(all_probs.flatten())
+                                except Exception as e:
+                                    st.warning(f"Uncertainty estimation failed: {e}")
+                                    uncertainty_mean = prediction_prob
+                        
+                        # Display results
+                        with col2:
+                            st.header("📊 Analysis Results")
+                            
+                            # Prediction with uncertainty
+                            pred_class = "Abnormal" if uncertainty_mean > threshold else "Normal"
+                            confidence = max(uncertainty_mean, 1 - uncertainty_mean)
+                            
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h3>Prediction</h3>
+                                <p><strong>Class:</strong> {pred_class}</p>
+                                <p><strong>Probability:</strong> {uncertainty_mean:.3f}</p>
+                                {f'<p><strong>Uncertainty (std):</strong> {uncertainty_std:.3f}</p>' if use_uncertainty else ''}
+                                {f'<p><strong>95% CI:</strong> [{confidence_lower:.3f}, {confidence_upper:.3f}]</p>' if use_uncertainty else ''}
+                                <p><strong>Confidence:</strong> {confidence:.3f}</p>
+                                <p><strong>Threshold:</strong> {threshold:.3f}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Performance metrics
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h3>Performance</h3>
+                                <p><strong>Inference Time:</strong> {inference_time:.2f} ms</p>
+                                <p><strong>Device:</strong> {device}</p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Risk assessment
+                            if uncertainty_mean > threshold:
+                                risk_level = "High" if uncertainty_mean > 0.8 else "Medium"
+                                risk_color = "#dc3545" if risk_level == "High" else "#fd7e14"
+                            else:
+                                risk_level = "Low"
+                                risk_color = "#28a745"
+                            
+                            st.markdown(f"""
+                            <div class="metric-card">
+                                <h3>Risk Assessment</h3>
+                                <p><strong>Risk Level:</strong> <span style="color: {risk_color};">{risk_level}</span></p>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            
+                            # Grad-CAM visualization
+                            if show_gradcam and GRADCAM_AVAILABLE:
+                                st.subheader("🎯 Grad-CAM Visualization")
+                                
+                                if show_all_cam_methods and cam_method == "All":
+                                    # Compare all methods side-by-side
+                                    with st.spinner("Generating all Grad-CAM methods..."):
+                                        try:
+                                            gradcam_results = {}
+                                            methods = ["GradCAM", "GradCAMPlusPlus", "XGradCAM"]
+                                            
+                                            for method in methods:
+                                                try:
+                                                    _, gradcam_img, grayscale_cam = generate_gradcam_streamlit(
+                                                        model, input_tensor, checkpoint_info['model_name'], 
+                                                        device, method
+                                                    )
+                                                    if gradcam_img is not None and grayscale_cam is not None:
+                                                        gradcam_results[method] = (gradcam_img, grayscale_cam)
+                                                except Exception as e:
+                                                    st.warning(f"Failed to generate {method}: {e}")
+                                            
+                                            if gradcam_results:
+                                                # Convert original image to numpy for comparison
+                                                original_np = np.array(image.resize((img_size, img_size))) / 255.0
+                                                fig = plot_gradcam_comparison(original_np, gradcam_results)
+                                                st.pyplot(fig)
+                                                plt.close(fig)
+                                                st.info("Comparison of all Grad-CAM methods. Each method highlights different aspects of the model's attention.")
+                                            else:
+                                                st.warning("Could not generate any Grad-CAM visualizations.")
+                                        except Exception as e:
+                                            st.warning(f"Grad-CAM comparison failed: {e}")
+                                else:
+                                    # Single method
+                                    with st.spinner("Generating Grad-CAM..."):
+                                        try:
+                                            pred_prob, gradcam_img, grayscale_cam = generate_gradcam_streamlit(
+                                                model, input_tensor, checkpoint_info['model_name'], 
+                                                device, cam_method
+                                            )
+                                            
+                                            if gradcam_img is not None and grayscale_cam is not None:
+                                                # Display Grad-CAM overlay
+                                                st.image(gradcam_img, caption=f"Grad-CAM Overlay ({cam_method})", use_column_width=True)
+                                                
+                                                # Display heatmap with responsive sizing
+                                                fig, ax = plt.subplots(figsize=(8, 6), dpi=100)
+                                                im = ax.imshow(grayscale_cam, cmap='jet')
+                                                ax.set_title("Grad-CAM Heatmap")
+                                                ax.axis('off')
+                                                plt.colorbar(im, ax=ax)
+                                                plt.tight_layout()
+                                                st.pyplot(fig)
+                                                plt.close(fig)  # Close figure to free memory
+                                                
+                                                st.info(f"Grad-CAM shows which regions the model focuses on for the '{pred_class}' prediction.")
+                                            else:
+                                                st.warning("Could not generate Grad-CAM visualization. Showing original image instead.")
+                                                st.image(image, caption="Original Image", use_column_width=True)
+                                        except Exception as e:
+                                            st.warning(f"Grad-CAM generation failed: {e}. Showing original image instead.")
+                                            st.image(image, caption="Original Image", use_column_width=True)
+                            
+                            # Model Transparency Panel
+                            st.subheader("🔍 Model Transparency")
+                            with st.expander("View Model Details", expanded=False):
+                                st.write(f"**Model Architecture:** {checkpoint_info['model_name']}")
+                                st.write(f"**Device:** {device}")
+                                st.write(f"**Image Size:** {img_size}x{img_size}")
+                                st.write(f"**Grad-CAM Method:** {cam_method if cam_method != 'All' else 'All Methods'}")
+                                st.write(f"**Uncertainty Estimation:** {'Enabled' if use_uncertainty else 'Disabled'}")
+                                if use_uncertainty:
+                                    st.write(f"**MC Samples:** {n_mc_samples}")
+                                    st.write(f"**Prediction Uncertainty:** {uncertainty_std:.4f}")
+                                st.write(f"**Inference Latency:** {inference_time:.2f} ms")
+                                
+                                # Classification reasoning
+                                st.write("**Classification Reasoning:**")
+                                if uncertainty_mean > threshold:
+                                    st.write(f"- Model predicts **Abnormal** with probability {uncertainty_mean:.3f}")
+                                    st.write(f"- This exceeds the threshold of {threshold:.3f}")
+                                    if use_uncertainty:
+                                        st.write(f"- Uncertainty range: [{confidence_lower:.3f}, {confidence_upper:.3f}]")
+                                else:
+                                    st.write(f"- Model predicts **Normal** with probability {1-uncertainty_mean:.3f}")
+                                    st.write(f"- Abnormal probability ({uncertainty_mean:.3f}) is below threshold ({threshold:.3f})")
+                                    if use_uncertainty:
+                                        st.write(f"- Uncertainty range: [{confidence_lower:.3f}, {confidence_upper:.3f}]")
+                            
+                            # Model information
+                            st.subheader("ℹ️ Model Information")
+                            st.write(f"**Model:** {checkpoint_info['model_name']}")
+                            st.write(f"**Device:** {device}")
+                            st.write(f"**Image Size:** {img_size}x{img_size}")
+                            st.write(f"**Grad-CAM Method:** {cam_method}")
+                    
+                    else:
+                        st.error("Failed to load model. Please check the model file.")
                 
                 else:
-                    st.error("Failed to load model. Please check the model file.")
-            
-            else:
-                st.warning("No model file found. Please train a model first or upload a custom model.")
+                    st.warning("No model file found. Please train a model first or upload a custom model.")
         
         else:
             # Show sample images
