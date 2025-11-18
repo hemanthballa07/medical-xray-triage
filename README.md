@@ -65,21 +65,124 @@ make ui         # Launch Streamlit app
 
 ### Training
 
-Train the model on sample data:
+Train the model on the Chest X-ray Pneumonia dataset:
 
 ```bash
-python src/train.py --epochs 5 --batch_size 4
+# Using config file (recommended)
+python -m src.train --config config_example.yaml
+
+# Or with command line arguments
+python -m src.train --data_dir ./data/chest_xray --epochs 25 --batch_size 8 --lr 0.0001
 ```
+
+**Training Configuration:**
+- **Epochs**: 25 (with early stopping patience of 8)
+- **Batch Size**: 8
+- **Learning Rate**: 0.0001
+- **Model**: ResNet18 (pretrained)
+- **Image Size**: 320x320
+- **Data Augmentation**: Random crop, rotation, color jitter, affine transforms
+- **Dataset Split**: 70/15/15 train/val/test with stratified splitting (fixed random seed=42)
+
+The training script automatically:
+- Saves the best model checkpoint to `results/best.pt`
+- Generates training metrics in `results/metrics.json`
+- Creates loss curves and training history plots
 
 ### Evaluation
 
-Evaluate the trained model:
+**Standard Evaluation:**
+```bash
+python -m src.eval --data_dir ./data/chest_xray --model_path results/best.pt
+```
+
+**Enhanced Evaluation (Recommended):**
+```bash
+python -m src.eval_enhanced --data_dir ./data/chest_xray --model_path results/best.pt
+```
+
+The enhanced evaluation provides:
+1. **Multiple Threshold Analysis**:
+   - Default threshold (0.5)
+   - Optimal F1 threshold
+   - Operating threshold (prioritizes recall, maintains specificity ≥0.93)
+
+2. **Probability Calibration**:
+   - Temperature Scaling
+   - Expected Calibration Error (ECE)
+   - Reliability diagram
+
+3. **Error Analysis**:
+   - False negative and false positive analysis
+   - Confidence score distributions
+   - Pattern identification
+
+4. **Robustness Checks**:
+   - Evaluation with stronger augmentations
+   - Performance under stress tests
+
+5. **Comprehensive Outputs**:
+   - All metrics at different thresholds
+   - Confusion matrices for each threshold
+   - ROC curves and reliability diagrams
+   - Metadata for reproducibility
+
+### Inference
+
+Run inference with the trained model:
 
 ```bash
-python src/eval.py --model_path results/best.pt
+# Single image prediction
+python -m src.interpret --image path/to/image.jpeg --model_path results/best.pt
+
+# Batch inference on test set
+python -m src.eval_enhanced --data_dir ./data/chest_xray --model_path results/best.pt
+```
+
+**Operating Threshold**: The model uses a chosen operating threshold (τ) that prioritizes recall while maintaining specificity ≥0.93. This threshold is selected for clinical safety, balancing the need to catch all positive cases (high recall) while minimizing false alarms (high specificity).
+
+**Known Limitations**:
+- Model trained on Chest X-ray Pneumonia dataset; performance may vary on other datasets
+- Requires pre-split dataset structure (train/val/test) for enhanced evaluation
+- Best performance on images similar to training distribution
+- Not intended for clinical use without proper validation
+
+### Ablation Studies
+
+Compare different model architectures:
+
+```bash
+python src/ablation_study.py --data_dir data/chest_xray --output_dir results/ablation
+```
+
+This will:
+- Train and evaluate ResNet18, ResNet50, and EfficientNetV2-S
+- Compare performance metrics (AUROC, F1)
+- Compare model size and inference time
+- Generate comparison table and JSON results
+
+### Generate Additional Plots
+
+Generate precision-recall curves and ROC vs threshold plots:
+
+```bash
+# First run evaluation to generate predictions
+python src/eval_enhanced.py --data_dir data/chest_xray
+
+# Then generate additional plots
+python src/generate_additional_plots.py
 ```
 
 ### Interactive UI
+
+**Enhanced Features:**
+
+1. **Batch Upload**: Process multiple images at once with progress tracking
+2. **Multiple Grad-CAM Methods**: Compare GradCAM, GradCAM++, and XGradCAM side-by-side
+3. **Uncertainty Estimation**: Monte-Carlo dropout with confidence intervals
+4. **Model Transparency Panel**: Detailed model information and classification reasoning
+5. **Performance Metrics**: Real-time inference latency and device information
+6. **Dynamic Threshold Adjustment**: Live F1 and sensitivity updates as you adjust threshold
 
 Launch the Streamlit application:
 
@@ -125,11 +228,14 @@ streamlit run ui/app.py
 ## Features
 
 - **Binary Classification**: Detects abnormalities in chest X-ray images
-- **Pretrained Models**: Supports ResNet50 and EfficientNetV2-S backbones
-- **Grad-CAM Visualization**: Provides interpretable heatmaps for model decisions
-- **Interactive UI**: Streamlit-based web interface for easy model interaction
-- **Comprehensive Metrics**: AUROC, F1-score, sensitivity, specificity tracking
-- **Reproducible**: Deterministic training with fixed random seeds
+- **Pretrained Models**: Supports ResNet18, ResNet50, and EfficientNetV2-S backbones
+- **Grad-CAM Visualization**: Provides interpretable heatmaps with multiple methods (GradCAM, GradCAM++, XGradCAM)
+- **Interactive UI**: Streamlit-based web interface with batch upload, uncertainty estimation, and model transparency
+- **Comprehensive Metrics**: AUROC, F1-score, sensitivity, specificity tracking at multiple thresholds
+- **Uncertainty Estimation**: Monte-Carlo dropout with confidence intervals
+- **Robust Evaluation**: Proper 70/15/15 dataset split with stratified sampling
+- **Ablation Studies**: Compare different model architectures
+- **Reproducible**: Deterministic training with fixed random seeds and metadata tracking
 - **Sample Dataset**: Includes synthetic data for immediate testing
 
 ## Dataset
@@ -185,6 +291,14 @@ class_weights = {0: 1.0, 1: 2.0}  # Give more weight to minority class
 ### Chest X-ray Pneumonia Dataset (Default for Local Testing)
 
 The project uses the [Chest X-ray Pneumonia Dataset](https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia) as the default dataset for local testing and training. This is a smaller, manageable dataset (~2.3GB) that's ideal for local development and experimentation.
+
+**Dataset Description:**
+- **Total Images**: ~5,863 chest X-ray images
+- **Classes**: Normal (1,341 train, 234 test) and Pneumonia (3,875 train, 390 test)
+- **Format**: JPEG images in grayscale/RGB
+- **Split**: Pre-split into train/val/test directories
+- **Use Case**: Binary classification for pneumonia detection
+- **Note**: Class imbalance exists (more pneumonia cases than normal)
 
 #### Quick Setup
 
