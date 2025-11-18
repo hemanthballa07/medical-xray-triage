@@ -83,7 +83,7 @@ def get_config():
     parser.add_argument(
         "--epochs", 
         type=int, 
-        default=2,
+        default=25,
         help="Number of training epochs"
     )
     parser.add_argument(
@@ -101,7 +101,7 @@ def get_config():
     parser.add_argument(
         "--patience", 
         type=int, 
-        default=5,
+        default=8,
         help="Early stopping patience"
     )
     

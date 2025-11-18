@@ -17,10 +17,10 @@ pretrained: true
 
 # Training configuration
 batch_size: 8
-epochs: 5
+epochs: 25
 lr: 0.0001
 weight_decay: 0.0001
-patience: 5
+patience: 8
 
 # Evaluation configuration
 model_path: "./results/best.pt"

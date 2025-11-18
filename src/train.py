@@ -96,6 +96,8 @@ def train_epoch(model, train_loader, criterion, optimizer, device):
         
         # Backward pass
         loss.backward()
+        # Gradient clipping for stable training
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
         
         # Statistics
@@ -276,12 +278,13 @@ def train_model(config):
         weight_decay=config['weight_decay']
     )
     
-    # Define scheduler
+    # Define scheduler with improved patience
     scheduler = ReduceLROnPlateau(
         optimizer,
         mode='max',
         factor=0.5,
-        patience=1
+        patience=3,
+        min_lr=1e-6
     )
     
     # Early stopping
