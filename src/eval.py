@@ -253,22 +253,17 @@ def main():
     is_nih_dataset = os.path.exists(train_labels_path)
     
     if is_nih_dataset:
-        print("NIH dataset detected (pre-split structure), using test split for evaluation")
-        # Load only test split for evaluation
-        test_labels_path = os.path.join(config['data_dir'], 'test_labels.csv')
-        test_images_dir = os.path.join(config['data_dir'], 'test')
-        
-        test_transform = get_transforms(config['img_size'], is_training=False)
-        test_dataset = ChestXrayDataset(test_labels_path, test_images_dir, transform=test_transform)
-        
-        from torch.utils.data import DataLoader
-        test_loader = DataLoader(
-            test_dataset,
+        print("NIH dataset detected (pre-split structure), using re-split test set for evaluation")
+        # Use create_pre_split_data_loaders to get properly re-split test loader
+        # This ensures we use the same 70/15/15 split as training
+        _, _, test_loader, _ = create_pre_split_data_loaders(
+            data_dir=config['data_dir'],
             batch_size=config['batch_size'],
-            shuffle=False,
+            img_size=config['img_size'],
             num_workers=config['num_workers'],
-            pin_memory=torch.cuda.is_available()
+            use_weighted_sampling=False  # Not needed for test set
         )
+        print(f"Test dataset size: {len(test_loader.dataset)}")
     elif os.path.exists(config['labels_path']):
         import pandas as pd
         labels_df = pd.read_csv(config['labels_path'])
