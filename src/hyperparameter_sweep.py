@@ -26,8 +26,9 @@ except ImportError:
 from config import get_config
 from data import create_pre_split_data_loaders
 from model import create_model
-from train import train_epoch, evaluate
+from train import train_epoch, validate_epoch
 from utils import get_device, seed_everything, save_metrics
+import torch.nn as nn
 
 
 def objective(trial, data_dir, device, img_size=320, epochs=5, quick_mode=True):
@@ -69,6 +70,15 @@ def objective(trial, data_dir, device, img_size=320, epochs=5, quick_mode=True):
         model = create_model(model_name='resnet18', num_classes=1, pretrained=True)
         model.to(device)
         
+        # Create loss function with class weights
+        if len(class_weights) > 1:
+            class_weights_tensor = torch.tensor([
+                class_weights[0], class_weights[1]
+            ], dtype=torch.float32).to(device)
+            criterion = nn.BCEWithLogitsLoss(pos_weight=class_weights_tensor[1:2])
+        else:
+            criterion = nn.BCEWithLogitsLoss()
+        
         # Optimizer with suggested hyperparameters
         optimizer = torch.optim.AdamW(
             model.parameters(),
@@ -82,11 +92,11 @@ def objective(trial, data_dir, device, img_size=320, epochs=5, quick_mode=True):
         for epoch in range(epochs):
             # Train
             train_metrics = train_epoch(
-                model, train_loader, optimizer, device, class_weights
+                model, train_loader, criterion, optimizer, device
             )
             
             # Validate
-            val_metrics = evaluate(model, val_loader, device, class_weights)
+            val_metrics = validate_epoch(model, val_loader, criterion, device)
             
             # Track best validation AUROC
             if val_metrics['auroc'] > best_val_auroc:
@@ -181,27 +191,40 @@ def run_hyperparameter_sweep(
     
     # Generate visualizations
     try:
-        # Optimization history
-        fig = optuna.visualization.plot_optimization_history(study)
-        fig.write_image(os.path.join(output_dir, 'optimization_history.png'))
-        
-        # Parameter importance
+        # Check if plotly is available for visualizations
         try:
-            fig = optuna.visualization.plot_param_importances(study)
-            fig.write_image(os.path.join(output_dir, 'param_importances.png'))
-        except:
-            pass  # May fail if not enough trials
+            import plotly
+            PLOTLY_AVAILABLE = True
+        except ImportError:
+            PLOTLY_AVAILABLE = False
+            print("Warning: plotly not installed. Skipping Optuna visualizations.")
+            print("Install with: pip install plotly kaleido")
         
-        # Parallel coordinate plot
-        try:
-            fig = optuna.visualization.plot_parallel_coordinate(study)
-            fig.write_image(os.path.join(output_dir, 'parallel_coordinate.png'))
-        except:
-            pass
-        
-        print("Visualizations saved to:", output_dir)
+        if PLOTLY_AVAILABLE:
+            # Optimization history
+            try:
+                fig = optuna.visualization.plot_optimization_history(study)
+                fig.write_image(os.path.join(output_dir, 'optimization_history.png'))
+            except Exception as e:
+                print(f"Warning: Could not generate optimization history: {e}")
+            
+            # Parameter importance
+            try:
+                fig = optuna.visualization.plot_param_importances(study)
+                fig.write_image(os.path.join(output_dir, 'param_importances.png'))
+            except Exception as e:
+                print(f"Warning: Could not generate parameter importance: {e}")
+            
+            # Parallel coordinate plot
+            try:
+                fig = optuna.visualization.plot_parallel_coordinate(study)
+                fig.write_image(os.path.join(output_dir, 'parallel_coordinate.png'))
+            except Exception as e:
+                print(f"Warning: Could not generate parallel coordinate plot: {e}")
+            
+            print("Visualizations saved to:", output_dir)
     except Exception as e:
-        print(f"Warning: Could not generate all visualizations: {e}")
+        print(f"Warning: Could not generate visualizations: {e}")
     
     # Create 3D/contour plots for key parameters
     try:

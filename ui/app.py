@@ -796,7 +796,7 @@ def main():
         uploaded_file = uploaded_files[0] if uploaded_files else None
     
     # Process uploaded image(s)
-        if uploaded_file is not None:
+    if uploaded_file is not None:
         try:
             # Validate file size (max 10MB)
             if hasattr(uploaded_file, 'size') and uploaded_file.size > 10 * 1024 * 1024:
