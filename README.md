@@ -163,7 +163,7 @@ This will:
 
 ### Generate Additional Plots
 
-Generate precision-recall curves and ROC vs threshold plots:
+Generate precision-recall curves, ROC vs threshold, F1/Accuracy vs threshold, and calibration curves:
 
 ```bash
 # First run evaluation to generate predictions
@@ -172,6 +172,53 @@ python src/eval_enhanced.py --data_dir data/chest_xray
 # Then generate additional plots
 python src/generate_additional_plots.py
 ```
+
+This will create:
+- `precision_recall_curve.png`
+- `roc_vs_threshold.png`
+- `f1_accuracy_vs_threshold.png`
+- `calibration_curve.png`
+
+### Prepare IEEE Report Figures
+
+Prepare all figures for inclusion in the IEEE report:
+
+```bash
+# Generate all plots and copy to docs/figs/
+python prepare_ieee_figures.py
+```
+
+This script will:
+1. Generate any missing plots from saved predictions
+2. Copy all required figures to `docs/figs/` with standardized names
+3. Create ablation study CSV/JSON tables
+4. Provide LaTeX inclusion commands
+
+**Required Figures for IEEE Report:**
+- `architecture.png` - System architecture diagram (create manually)
+- `roc_curve.png` - ROC curve
+- `confusion_matrix.png` - Confusion matrix
+- `pr_curve.png` - Precision-Recall curve
+- `threshold_curve.png` - ROC metrics vs threshold
+- `calibration_curve.png` - Calibration curve
+- `ablation_table.csv` - Ablation study results table
+- `gradcam_normal_example.png` - Grad-CAM example (normal)
+- `gradcam_abnormal_example.png` - Grad-CAM example (abnormal)
+
+### Verify Deliverable 3 Requirements
+
+Run the verification script to ensure all requirements are met:
+
+```bash
+python test_deliverable3.py
+```
+
+This checks:
+- All required modules exist and are importable
+- All required functions are present
+- UI features are implemented
+- Documentation is complete
+- Output files are generated correctly
 
 ### Interactive UI
 
@@ -199,7 +246,15 @@ streamlit run ui/app.py
 ├── environment.yml               # Conda environment specification
 ├── docs/                         # Documentation and diagrams
 │   ├── architecture.png          # System architecture diagram
-│   └── wireframe.png             # UI mockup
+│   ├── wireframe.png             # UI mockup
+│   └── figs/                     # Figures for IEEE report
+│       ├── roc_curve.png
+│       ├── confusion_matrix.png
+│       ├── pr_curve.png
+│       ├── threshold_curve.png
+│       ├── calibration_curve.png
+│       ├── ablation_table.csv
+│       └── ...
 ├── data/                         # Data directory
 │   ├── sample/                   # Sample dataset
 │   │   ├── images/               # Sample X-ray images
@@ -213,13 +268,28 @@ streamlit run ui/app.py
 │   ├── data.py                  # Data loading and preprocessing
 │   ├── model.py                 # Model definitions
 │   ├── train.py                 # Training script
-│   ├── eval.py                  # Evaluation script
+│   ├── eval.py                  # Standard evaluation script
+│   ├── eval_enhanced.py         # Enhanced evaluation with multiple thresholds
 │   ├── interpret.py             # Grad-CAM interpretation
 │   ├── utils.py                 # Utility functions
+│   ├── uncertainty.py           # Uncertainty estimation (Monte-Carlo dropout)
+│   ├── plotting.py              # Additional plotting utilities
+│   ├── ablation_study.py        # Model architecture comparison
+│   ├── generate_additional_plots.py  # Generate plots from saved predictions
+│   ├── train_diagnostic.py      # Training pipeline diagnostics
 │   └── make_sample_data.py      # Sample data generation
 ├── ui/                          # User interface
 │   └── app.py                   # Streamlit application
 ├── results/                     # Training outputs and results
+│   ├── best.pt                  # Best model checkpoint
+│   ├── metrics.json             # Training metrics
+│   ├── evaluation_results.json  # Comprehensive evaluation results
+│   ├── predictions.npz          # Saved predictions for plot generation
+│   ├── metadata.json            # Reproducibility metadata
+│   ├── ablation/                # Ablation study results
+│   └── *.png                    # Various plots and visualizations
+├── prepare_ieee_figures.py      # Script to prepare IEEE report figures
+├── test_deliverable3.py         # Verification script for Deliverable 3
 └── reports/                     # Reports and documentation
     ├── blueprint.md             # Technical blueprint
     └── blueprint.pdf            # Technical blueprint (PDF)

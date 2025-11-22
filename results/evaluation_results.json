@@ -61,7 +61,7 @@
   "calibration": {
     "temperature": 3.5099199466944526,
     "ece_uncalibrated": 0.03706781818733823,
-    "ece_calibrated": 0.037296618804318636,
+    "ece_calibrated": 0.03729656815048413,
     "calibrated_metrics": {
       "auroc": 0.9959818560809659,
       "precision": 0.9887278582930756,
@@ -103,26 +103,26 @@
   },
   "robustness": {
     "stronger_crop": {
-      "auroc": 0.9675598788657428,
-      "f1": 0.9475240206947524,
-      "recall": 1.0
+      "auroc": 0.9697131582742301,
+      "f1": 0.9488510007412898,
+      "recall": 0.9984399375975039
     },
     "stronger_rotation": {
-      "auroc": 0.9574293055755843,
-      "f1": 0.9121951219512195,
-      "recall": 0.875195007800312
+      "auroc": 0.9514250317911876,
+      "f1": 0.9107289107289107,
+      "recall": 0.8673946957878315
     },
     "stronger_color_jitter": {
-      "auroc": 0.9675992081700073,
-      "f1": 0.9530516431924883,
-      "recall": 0.9500780031201248
+      "auroc": 0.9714043183576082,
+      "f1": 0.9550118389897395,
+      "recall": 0.9438377535101404
     }
   },
   "config": {
     "config": null,
-    "data_dir": "data/chest_xray",
-    "images_dir": "data/chest_xray/train",
-    "labels_path": "data/chest_xray/train_labels.csv",
+    "data_dir": "./data/chest_xray",
+    "images_dir": "./data/chest_xray/train",
+    "labels_path": "./data/chest_xray/train_labels.csv",
     "output_dir": "./results",
     "img_size": 320,
     "model_name": "resnet18",
@@ -132,10 +132,10 @@
     "lr": 0.0001,
     "weight_decay": 0.0001,
     "patience": 8,
-    "model_path": "./results/best.pt",
+    "model_path": "results/best.pt",
     "threshold": 0.5,
     "seed": 1337,
-    "num_workers": 0,
+    "num_workers": 4,
     "device": "mps",
     "save_freq": 1,
     "log_freq": 10,

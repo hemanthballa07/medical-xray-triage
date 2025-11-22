@@ -1,5 +1,13 @@
 """
 Additional plotting utilities for evaluation and visualization.
+
+This module provides comprehensive plotting functions for:
+- ROC curves
+- Precision-Recall curves
+- ROC metrics vs threshold
+- F1/Accuracy vs threshold
+- Calibration curves
+- Grad-CAM comparisons
 """
 
 import numpy as np
@@ -99,6 +107,89 @@ def plot_roc_vs_threshold(y_true, y_prob, save_path=None, title="ROC Metrics vs 
         print(f"ROC vs Threshold plot saved to: {save_path}")
     
     return fig
+
+
+def plot_f1_accuracy_vs_threshold(y_true, y_prob, save_path=None, title="F1 and Accuracy vs Threshold"):
+    """
+    Plot F1 score and accuracy vs threshold.
+    
+    Args:
+        y_true: True binary labels
+        y_prob: Predicted probabilities
+        save_path: Path to save the plot
+        title: Plot title
+    """
+    from sklearn.metrics import f1_score, accuracy_score
+    
+    thresholds = np.linspace(0, 1, 100)
+    f1_scores = []
+    accuracies = []
+    
+    for threshold in thresholds:
+        y_pred = (y_prob >= threshold).astype(int)
+        f1 = f1_score(y_true, y_pred, zero_division=0)
+        acc = accuracy_score(y_true, y_pred)
+        f1_scores.append(f1)
+        accuracies.append(acc)
+    
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+    
+    ax1.set_xlabel('Threshold')
+    ax1.set_ylabel('F1 Score', color='blue')
+    ax1.plot(thresholds, f1_scores, 'b-', label='F1 Score', linewidth=2)
+    ax1.tick_params(axis='y', labelcolor='blue')
+    ax1.set_ylim([0, 1])
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='upper left')
+    
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Accuracy', color='green')
+    ax2.plot(thresholds, accuracies, 'g-', label='Accuracy', linewidth=2)
+    ax2.tick_params(axis='y', labelcolor='green')
+    ax2.set_ylim([0, 1])
+    ax2.legend(loc='upper right')
+    
+    plt.title(title)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"F1/Accuracy vs Threshold plot saved to: {save_path}")
+    
+    return fig
+
+
+def plot_calibration_curve(y_true, y_prob, save_path=None, title="Calibration Curve"):
+    """
+    Plot calibration curve (reliability diagram).
+    
+    Args:
+        y_true: True binary labels
+        y_prob: Predicted probabilities
+        save_path: Path to save the plot
+        title: Plot title
+    """
+    from sklearn.calibration import calibration_curve
+    
+    fraction_of_positives, mean_predicted_value = calibration_curve(
+        y_true, y_prob, n_bins=10, strategy='uniform'
+    )
+    
+    plt.figure(figsize=(8, 6))
+    plt.plot(mean_predicted_value, fraction_of_positives, "s-", label="Model")
+    plt.plot([0, 1], [0, 1], "k--", label="Perfectly calibrated")
+    plt.xlabel('Mean Predicted Probability')
+    plt.ylabel('Fraction of Positives')
+    plt.title(title)
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Calibration curve saved to: {save_path}")
+    
+    return plt.gcf()
 
 
 def plot_gradcam_comparison(original_image, gradcam_results, save_path=None):

@@ -447,7 +447,11 @@ def main():
     
     # Apply calibration to test predictions
     calibrated_logits = calibrator.transform(all_logits)
-    calibrated_predictions = torch.sigmoid(calibrated_logits).numpy()
+    # Convert to tensor if numpy array, then apply sigmoid
+    if isinstance(calibrated_logits, np.ndarray):
+        calibrated_predictions = torch.sigmoid(torch.from_numpy(calibrated_logits)).numpy()
+    else:
+        calibrated_predictions = torch.sigmoid(calibrated_logits).numpy()
     
     # Compute ECE
     ece_uncalibrated = compute_ece(all_predictions, all_labels)

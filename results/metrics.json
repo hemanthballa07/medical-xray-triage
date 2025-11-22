@@ -127,10 +127,10 @@
     ]
   },
   "config": {
-    "config": null,
-    "data_dir": "data/chest_xray",
-    "images_dir": "data/chest_xray/train",
-    "labels_path": "data/chest_xray/train_labels.csv",
+    "config": "config_example.yaml",
+    "data_dir": "./data/chest_xray",
+    "images_dir": "./data/chest_xray/train",
+    "labels_path": "./data/chest_xray/train_labels.csv",
     "output_dir": "./results",
     "img_size": 320,
     "model_name": "resnet18",
@@ -143,7 +143,7 @@
     "model_path": "./results/best.pt",
     "threshold": 0.5,
     "seed": 1337,
-    "num_workers": 0,
+    "num_workers": 4,
     "device": "mps",
     "save_freq": 1,
     "log_freq": 10,
@@ -154,6 +154,6 @@
     "best_model_path": "./results/best.pt",
     "metrics_path": "./results/metrics.json"
   },
-  "training_time": 1296.6494171619415,
-  "timestamp": "2025-11-17 18:25:08"
+  "training_time": 1760.6133739948273,
+  "timestamp": "2025-11-21 19:42:48"
 }

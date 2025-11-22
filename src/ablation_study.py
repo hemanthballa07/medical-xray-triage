@@ -194,10 +194,35 @@ def run_ablation_study(models_to_test=None, data_dir=None, output_dir="./results
             traceback.print_exc()
             results[model_name] = {'error': str(e)}
     
-    # Save comparison results
+    # Save comparison results as JSON
     comparison_path = os.path.join(output_dir, 'ablation_comparison.json')
     with open(comparison_path, 'w') as f:
         json.dump(results, f, indent=2)
+    
+    # Also export to CSV for easy table insertion
+    import pandas as pd
+    csv_data = []
+    for model_name, result in results.items():
+        if 'error' not in result:
+            metrics = result['test_metrics']
+            perf = result['performance']
+            csv_data.append({
+                'Model': model_name,
+                'AUROC': f"{metrics['auroc']:.4f}",
+                'F1': f"{metrics['f1']:.4f}",
+                'Precision': f"{metrics['precision']:.4f}",
+                'Recall': f"{metrics['recall']:.4f}",
+                'Parameters (M)': f"{perf['total_parameters']/1e6:.2f}",
+                'Model Size (MB)': f"{perf['model_size_mb']:.2f}",
+                'Inference Time (ms)': f"{perf['mean_inference_time_ms']:.2f}",
+                'Inference Std (ms)': f"{perf['std_inference_time_ms']:.2f}"
+            })
+    
+    if csv_data:
+        csv_path = os.path.join(output_dir, 'ablation_comparison.csv')
+        df = pd.DataFrame(csv_data)
+        df.to_csv(csv_path, index=False)
+        print(f"CSV results saved to: {csv_path}")
     
     # Print summary table
     print("\n" + "=" * 80)

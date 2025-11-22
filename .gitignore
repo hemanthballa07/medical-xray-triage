@@ -75,3 +75,12 @@ tmp/
 # Streamlit
 .streamlit/
 
+
+# Temporary files
+training_output.log
+*.log
+
+# Redundant result images (keep in docs/figs)
+results/cam_*.png
+results/sample_*.png
+results/augmentation_*.png

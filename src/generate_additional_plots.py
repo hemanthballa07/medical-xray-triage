@@ -13,8 +13,12 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent))
 
-from plotting import plot_precision_recall_curve, plot_roc_vs_threshold
-from eval_enhanced import main as eval_main
+from plotting import (
+    plot_precision_recall_curve, 
+    plot_roc_vs_threshold,
+    plot_f1_accuracy_vs_threshold,
+    plot_calibration_curve
+)
 
 
 def generate_plots_from_eval_results(predictions_path="./results/predictions.npz",
@@ -51,9 +55,21 @@ def generate_plots_from_eval_results(predictions_path="./results/predictions.npz
     plot_roc_vs_threshold(all_labels, all_predictions, save_path=roc_thresh_path,
                           title="ROC Metrics vs Threshold - Test Set")
     
-    print(f"\nPlots saved to:")
+    print("Generating F1/Accuracy vs threshold plot...")
+    f1_acc_path = os.path.join(output_dir, 'f1_accuracy_vs_threshold.png')
+    plot_f1_accuracy_vs_threshold(all_labels, all_predictions, save_path=f1_acc_path,
+                                  title="F1 and Accuracy vs Threshold - Test Set")
+    
+    print("Generating calibration curve...")
+    calib_path = os.path.join(output_dir, 'calibration_curve.png')
+    plot_calibration_curve(all_labels, all_predictions, save_path=calib_path,
+                          title="Calibration Curve - Test Set")
+    
+    print(f"\nAll plots saved to:")
     print(f"  - {pr_path}")
     print(f"  - {roc_thresh_path}")
+    print(f"  - {f1_acc_path}")
+    print(f"  - {calib_path}")
 
 
 if __name__ == "__main__":
