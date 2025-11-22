@@ -37,6 +37,8 @@ from utils import (
     plot_roc_curve, plot_confusion_matrix, save_metrics,
     get_device, format_time
 )
+from bootstrap_metrics import bootstrap_all_metrics, plot_bootstrap_distributions
+from failure_analysis import analyze_and_visualize_failures
 
 
 class TemperatureScaling:
@@ -480,6 +482,18 @@ def main():
     for bullet in error_analysis['summary']:
         print(f"  • {bullet}")
     
+    # Visualize failure cases
+    print("\nGenerating failure case visualizations...")
+    try:
+        failure_analysis = analyze_and_visualize_failures(
+            model, test_dataset, all_predictions, all_labels, device,
+            default_threshold, config['output_dir'], max_cases=9
+        )
+        print(f"  False Positives: {failure_analysis['false_positives']['count']} cases")
+        print(f"  False Negatives: {failure_analysis['false_negatives']['count']} cases")
+    except Exception as e:
+        print(f"  Warning: Could not generate failure visualizations: {e}")
+    
     # 4. ROBUSTNESS CHECKS
     print("\n" + "="*60)
     print("4. ROBUSTNESS CHECKS")
@@ -498,9 +512,28 @@ def main():
     for aug_name, metrics in robustness_results.items():
         print(f"  {aug_name}: AUROC: {metrics['auroc']:.4f}, F1: {metrics['f1']:.4f}, Recall: {metrics['recall']:.4f}")
     
-    # 5. GENERATE FIGURES
+    # 5. BOOTSTRAP CONFIDENCE INTERVALS
     print("\n" + "="*60)
-    print("5. GENERATING FIGURES")
+    print("5. BOOTSTRAP CONFIDENCE INTERVALS")
+    print("="*60)
+    
+    print("Computing bootstrapped confidence intervals (this may take a few minutes)...")
+    bootstrap_results = bootstrap_all_metrics(
+        all_labels, all_predictions, default_threshold,
+        n_bootstrap=1000, confidence_level=0.95
+    )
+    
+    print("\nBootstrap Results (95% Confidence Intervals):")
+    for metric_name, metric_data in bootstrap_results.items():
+        print(f"  {metric_name.upper()}: {metric_data['mean']:.4f} {metric_data['ci']}")
+    
+    # Plot bootstrap distributions
+    bootstrap_plot_path = os.path.join(config['output_dir'], 'bootstrap_confidence_intervals.png')
+    plot_bootstrap_distributions(bootstrap_results, save_path=bootstrap_plot_path)
+    
+    # 6. GENERATING FIGURES
+    print("\n" + "="*60)
+    print("6. GENERATING FIGURES")
     print("="*60)
     
     os.makedirs(config['output_dir'], exist_ok=True)
@@ -522,9 +555,9 @@ def main():
             title=f"Confusion Matrix - {threshold_name.replace('_', ' ').title()} Threshold ({threshold:.4f})"
         )
     
-    # 6. CREATE METADATA
+    # 7. CREATE METADATA
     print("\n" + "="*60)
-    print("6. CREATING METADATA")
+    print("7. CREATING METADATA")
     print("="*60)
     
     metadata = create_metadata(config, model)
@@ -533,9 +566,9 @@ def main():
         json.dump(metadata, f, indent=2)
     print(f"Metadata saved to: {metadata_path}")
     
-    # 7. SAVE COMPREHENSIVE RESULTS
+    # 8. SAVE COMPREHENSIVE RESULTS
     print("\n" + "="*60)
-    print("7. SAVING RESULTS")
+    print("8. SAVING RESULTS")
     print("="*60)
     
     evaluation_results = {
@@ -568,6 +601,7 @@ def main():
         },
         'error_analysis': error_analysis,
         'robustness': robustness_results,
+        'bootstrap': bootstrap_results,
         'config': config
     }
     

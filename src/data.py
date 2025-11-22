@@ -421,7 +421,7 @@ def create_pre_split_data_loaders(
         test_size=(test_split / (val_split + test_split)),
         random_state=random_state,
         stratify=all_labels[temp_indices]
-    )
+        )
     
     # Get transforms
     train_transform = get_transforms(img_size, is_training=True)
