@@ -52,6 +52,7 @@ Thumbs.db
 # PyTorch
 *.pth
 *.pt
+!results/best.pt
 
 # Data (keep sample data, but ignore large datasets)
 data/large/
