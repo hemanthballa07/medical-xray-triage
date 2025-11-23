@@ -35,7 +35,10 @@ try:
     from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
     from pytorch_grad_cam.utils.image import show_cam_on_image
     GRADCAM_AVAILABLE = True
-except ImportError:
+except Exception as e:
+    print(f"❌ Error importing Grad-CAM: {e}")
+    import traceback
+    traceback.print_exc()
     GRADCAM_AVAILABLE = False
 
 
