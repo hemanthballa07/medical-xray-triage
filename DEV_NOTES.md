@@ -332,7 +332,7 @@ Evaluation automatically saves metadata:
 ## Contact
 
 For questions or issues:
-- **Author**: Hemanth Balla
+- **Author**: hemanthballa
 - **Email**: hemanthballa1861@gmail.com
 - **Repository**: https://github.com/hemanthballa07/medical-xray-triage
 

@@ -826,7 +826,7 @@ If you use this project in your research, please cite:
 ```bibtex
 @software{balla2025_medical_xray_triage,
   title={Medical X-ray Triage System},
-  author={Hemanth Balla},
+  author={hemanthballa},
   year={2025},
   url={https://github.com/hemanthballa07/medical-xray-triage}
 }
@@ -875,7 +875,7 @@ For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Author and Contact
 
-**Project Author**: Hemanth Balla  
+**Project Author**: hemanthballa  
 **Email**: hemanthballa1861@gmail.com  
 **Institution**: University of Florida  
 **Project Type**: Research and Educational  

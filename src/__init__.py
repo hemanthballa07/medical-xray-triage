@@ -6,8 +6,8 @@ using pretrained convolutional neural networks and interpretability techniques.
 """
 
 __version__ = "1.0.0"
-__author__ = "ML Engineer"
-__email__ = "engineer@example.com"
+__author__ = "hemanthballa"
+__email__ = "hemanthballa1861@gmail.com"
 
 # Import main modules
 from . import config

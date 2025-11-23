@@ -233,7 +233,7 @@ python test_integrity.py
 
 ## 📧 Contact
 
-**Author**: Hemanth Balla  
+**Author**: hemanthballa  
 **Email**: hemanthballa1861@gmail.com  
 **Repository**: https://github.com/hemanthballa07/medical-xray-triage  
 **Branch**: main
