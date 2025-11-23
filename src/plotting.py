@@ -202,7 +202,7 @@ def plot_gradcam_comparison(original_image, gradcam_results, save_path=None):
         save_path: Path to save the plot
     """
     n_methods = len(gradcam_results)
-    fig, axes = plt.subplots(2, n_methods + 1, figsize=(4 * (n_methods + 1), 8))
+    fig, axes = plt.subplots(2, n_methods + 1, figsize=(2.5 * (n_methods + 1), 5), dpi=80)
     
     # Original image
     axes[0, 0].imshow(original_image)
