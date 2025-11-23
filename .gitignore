@@ -75,6 +75,7 @@ tmp/
 
 # Streamlit
 .streamlit/
+!.streamlit/config.toml
 
 
 # Temporary files
