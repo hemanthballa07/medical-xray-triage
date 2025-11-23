@@ -20,8 +20,8 @@ The Medical X-ray Triage System is a production-ready deep learning framework fo
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
-cd pneumonia-project
+git clone https://github.com/hemanthballa07/medical-xray-triage.git
+cd medical-xray-triage
 ```
 
 2. Create and activate the conda environment:
@@ -356,6 +356,13 @@ streamlit run ui/app.py
 │   ├── plotting.py              # Additional plotting utilities
 │   ├── ablation_study.py        # Model architecture comparison
 │   ├── generate_additional_plots.py  # Generate plots from saved predictions
+│   ├── hyperparameter_sweep.py  # Optuna-based hyperparameter optimization
+│   ├── audit_module.py          # Subgroup metrics and fairness analysis
+│   ├── cross_dataset_eval.py    # Cross-dataset evaluation
+│   ├── bootstrap_metrics.py     # Bootstrap confidence intervals
+│   ├── failure_analysis.py       # Error case visualization
+│   ├── create_pipeline_diagram.py  # Pipeline diagram generation
+│   ├── preprocess_nih.py        # NIH dataset preprocessing
 │   └── make_sample_data.py      # Sample data generation
 ├── ui/                          # User interface
 │   └── app.py                   # Streamlit application
@@ -367,6 +374,9 @@ streamlit run ui/app.py
 │   ├── metadata.json            # Reproducibility metadata
 │   ├── ablation/                # Ablation study results
 │   └── *.png                    # Various plots and visualizations
+├── scripts/                     # Utility scripts
+│   ├── download_nih_dataset.py  # Download NIH Chest X-ray dataset
+│   └── prepare_chest_xray.py    # Prepare Chest X-ray dataset
 ├── prepare_ieee_figures.py      # Script to prepare IEEE report figures
 ├── test_integrity.py            # Integrity verification script
 └── reports/                     # Reports and documentation
@@ -694,38 +704,67 @@ Grad-CAM generates several visualization files in the `results/` directory:
 ## Structure Overview
 
 ```
-pneumonia-project/
+medical-xray-triage/
 ├── 📄 README.md                    # Project documentation and quick start
 ├── 📄 requirements.txt             # Python dependencies
 ├── 📄 environment.yml              # Conda environment specification
 ├── 📄 Makefile                     # Build commands and automation
 ├── 📄 setup.py                     # Automated setup script
+├── 📄 config_example.yaml          # Training configuration example
+├── 📄 Dockerfile                   # Docker container definition
+├── 📄 docker-compose.yml           # Docker Compose configuration
+├── 📄 prepare_ieee_figures.py      # Prepare figures for IEEE report
+├── 📄 test_integrity.py            # Integrity verification script
 ├── 📁 data/                        # Data directory
 │   ├── 📄 README.md                # Data format and usage guide
 │   └── 📁 sample/                  # Sample dataset (4 synthetic X-rays)
-├── 📁 src/                         # Source code (12 Python modules)
+├── 📁 src/                         # Source code (21 Python modules)
 │   ├── 📄 __init__.py              # Package initialization
-│   ├── 📄 __main__.py              # CLI entry point
 │   ├── 📄 config.py                # Configuration management
 │   ├── 📄 data.py                  # Data loading and preprocessing
-│   ├── 📄 model.py                 # Model definitions (ResNet50, EfficientNet)
+│   ├── 📄 model.py                 # Model definitions (ResNet18, ResNet50, EfficientNet)
 │   ├── 📄 train.py                 # Training pipeline with metrics
-│   ├── 📄 eval.py                  # Evaluation with visualizations
+│   ├── 📄 eval.py                  # Standard evaluation
+│   ├── 📄 eval_enhanced.py         # Enhanced evaluation with multiple thresholds
 │   ├── 📄 interpret.py             # Grad-CAM interpretation
 │   ├── 📄 utils.py                 # Utilities and metrics
+│   ├── 📄 uncertainty.py           # Monte-Carlo dropout uncertainty
+│   ├── 📄 plotting.py              # Additional plotting utilities
+│   ├── 📄 ablation_study.py        # Model architecture comparison
+│   ├── 📄 generate_additional_plots.py  # Generate plots from predictions
+│   ├── 📄 hyperparameter_sweep.py  # Optuna hyperparameter optimization
+│   ├── 📄 audit_module.py          # Subgroup metrics and fairness
+│   ├── 📄 cross_dataset_eval.py    # Cross-dataset evaluation
+│   ├── 📄 bootstrap_metrics.py     # Bootstrap confidence intervals
+│   ├── 📄 failure_analysis.py      # Error case visualization
+│   ├── 📄 create_pipeline_diagram.py  # Pipeline diagram generation
+│   ├── 📄 preprocess_nih.py        # NIH dataset preprocessing
 │   └── 📄 make_sample_data.py      # Sample data generation
+├── 📁 scripts/                     # Utility scripts
+│   ├── 📄 download_nih_dataset.py  # Download NIH Chest X-ray dataset
+│   └── 📄 prepare_chest_xray.py    # Prepare Chest X-ray dataset
 ├── 📁 ui/                          # User interface
 │   └── 📄 app.py                   # Streamlit web application
 ├── 📁 notebooks/                   # Jupyter notebooks
-│   └── 📓 setup.ipynb              # Environment verification and demo
+│   ├── 📓 setup.ipynb              # Environment verification and demo
+│   └── 📓 deliverable3_evaluation.ipynb  # Deliverable 3 evaluation
 ├── 📁 docs/                        # Documentation and diagrams
 │   ├── 🖼️ architecture.png         # System architecture diagram
+│   ├── 🖼️ pipeline_flow.png        # Pipeline flow diagram
 │   ├── 🖼️ wireframe.png            # UI wireframe
-│   └── 📄 make_docs_art.py         # Diagram generation script
+│   ├── 📄 make_docs_art.py         # Diagram generation script
+│   └── 📁 figs/                    # Figures for IEEE report
+│       ├── roc_curve.png
+│       ├── confusion_matrix.png
+│       ├── pr_curve.png
+│       └── ...
 ├── 📁 results/                     # Output directory (models, metrics, plots)
+│   ├── best.pt                     # Best model checkpoint
+│   ├── metrics.json                # Training metrics
+│   ├── evaluation_results.json     # Comprehensive evaluation results
+│   └── *.png                       # Various plots and visualizations
 └── 📁 reports/                     # Technical documentation
-    ├── 📄 blueprint.md             # Technical blueprint (13 sections)
-    └── 📄 blueprint.pdf            # PDF version (requires LaTeX for generation)
+    └── 📄 deliverable3_report.tex  # IEEE LaTeX report (Deliverable 3)
 ```
 
 ### Key Documentation Files
@@ -785,11 +824,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 If you use this project in your research, please cite:
 
 ```bibtex
-@software{medical_xray_triage,
-  title={Medical X-ray Triage with CNNs, Grad-CAM, and Streamlit UI},
-  author={Your Name},
-  year={2024},
-  url={https://github.com/yourusername/pneumonia-project}
+@software{balla2025_medical_xray_triage,
+  title={Medical X-ray Triage System},
+  author={Hemanth Balla},
+  year={2025},
+  url={https://github.com/hemanthballa07/medical-xray-triage}
 }
 ```
 
